@@ -9,7 +9,7 @@ How to set up, develop, and test call-operator locally.
 | Python | 3.12+ | `python --version` |
 | uv | latest | `uv --version` ([install](https://docs.astral.sh/uv/)) |
 | Git | any | `git --version` |
-| LLM API key | — | At least one: OpenAI, Anthropic, or Google |
+| LLM API key | — | At least one: OpenAI, Anthropic, Google, or OpenRouter |
 
 ## Initial Setup
 
@@ -77,11 +77,12 @@ uv run mypy src/
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LLM_PROVIDER` | Yes | `openai` | LLM provider: `openai`, `anthropic`, `google` |
+| `LLM_PROVIDER` | Yes | `openai` | LLM provider: `openai`, `anthropic`, `google`, `openrouter` |
 | `LLM_MODEL` | Yes | `gpt-4o` | Model name (provider-specific) |
 | `OPENAI_API_KEY` | If provider=openai | — | OpenAI API key (also used for OpenAI TTS) |
 | `ANTHROPIC_API_KEY` | If provider=anthropic | — | Anthropic API key |
 | `GOOGLE_API_KEY` | If provider=google | — | Google AI API key |
+| `OPENROUTER_API_KEY` | If provider=openrouter | — | OpenRouter API key |
 | `STT_PROVIDER` | No | `whisper_local` | STT: `whisper_local`, `deepgram` |
 | `STT_MODEL` | No | `tiny` | Whisper model size or Deepgram model name |
 | `DEEPGRAM_API_KEY` | If stt=deepgram | — | Deepgram API key |

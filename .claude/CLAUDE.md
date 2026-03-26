@@ -13,7 +13,7 @@ Real-time AI meeting agent. Joins video calls (Google Meet), listens to particip
 | VAD | Silero VAD (local, no GPU) |
 | STT (local) | faster-whisper (tiny/base, CPU) |
 | STT (cloud) | Deepgram (streaming WebSocket) |
-| LLM | LangChain (OpenAI / Anthropic / Google — configurable) |
+| LLM | LangChain (OpenAI / Anthropic / Google / OpenRouter — configurable) |
 | TTS | OpenAI TTS / ElevenLabs / Google Cloud TTS (configurable) |
 | Pipeline | asyncio queues (streaming stages) |
 | CLI | Typer + Rich |

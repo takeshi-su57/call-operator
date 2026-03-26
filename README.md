@@ -8,7 +8,8 @@ Real-time AI meeting agent that joins video calls, listens to participants, and 
 Google Meet ──► Audio Capture ──► VAD ──► STT ──► LLM ──► TTS ──► Audio Playback
                 (Playwright)     (Silero)  (Whisper/   (OpenAI/    (OpenAI/
                                            Deepgram)   Anthropic/  ElevenLabs/
-                                                       Google)     Google)
+                                                       Google/     Google)
+                                                       OpenRouter)
 ```
 
 1. **Joins the meeting** — Playwright bot joins Google Meet as a participant
@@ -24,7 +25,7 @@ Google Meet ──► Audio Capture ──► VAD ──► STT ──► LLM �
 
 - Python 3.12+
 - [uv](https://docs.astral.sh/uv/) (install: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
-- At least one LLM API key (OpenAI, Anthropic, or Google)
+- At least one LLM API key (OpenAI, Anthropic, Google, or OpenRouter)
 
 ### Setup
 
@@ -49,11 +50,12 @@ uv run python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `LLM_PROVIDER` | Yes | `openai` | LLM provider: `openai`, `anthropic`, `google` |
+| `LLM_PROVIDER` | Yes | `openai` | LLM provider: `openai`, `anthropic`, `google`, `openrouter` |
 | `LLM_MODEL` | Yes | `gpt-4o` | Model name |
 | `OPENAI_API_KEY` | If provider=openai | — | OpenAI API key |
 | `ANTHROPIC_API_KEY` | If provider=anthropic | — | Anthropic API key |
 | `GOOGLE_API_KEY` | If provider=google | — | Google AI API key |
+| `OPENROUTER_API_KEY` | If provider=openrouter | — | OpenRouter API key |
 | `STT_PROVIDER` | No | `whisper_local` | STT: `whisper_local`, `deepgram` |
 | `STT_MODEL` | No | `tiny` | Whisper model size or Deepgram model |
 | `DEEPGRAM_API_KEY` | If stt=deepgram | — | Deepgram API key |

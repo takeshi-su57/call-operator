@@ -39,7 +39,8 @@ call-operator is a real-time AI meeting agent built as an async pipeline in Pyth
              │  Playwright  │    │  STT/TTS APIs │    │   LLM APIs    │
              │  (browser)   │    │  (Whisper/    │    │   (OpenAI/    │
              │              │    │   Deepgram/   │    │   Anthropic/  │
-             │              │    │   ElevenLabs) │    │   Google)     │
+             │              │    │   ElevenLabs) │    │   Google/     │
+             │              │    │              │    │   OpenRouter) │
              └──────────────┘    └──────────────┘    └──────────────┘
 ```
 
@@ -69,7 +70,7 @@ Pluggable speech-to-text. Factory function `get_stt()` returns the configured pr
 - **deepgram_cloud.py** — Deepgram streaming API (~200ms latency)
 
 ### LLM Engine (`llm/`)
-- **provider.py** — LangChain factory returning `BaseChatModel` (OpenAI/Anthropic/Google)
+- **provider.py** — LangChain factory returning `BaseChatModel` (OpenAI/Anthropic/Google/OpenRouter)
 - **conversation.py** — Manages conversation history, system prompt, response generation
 
 ### TTS Providers (`tts/`)

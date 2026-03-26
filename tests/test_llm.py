@@ -18,6 +18,14 @@ class TestLLMProvider:
         llm = get_llm(settings)
         assert llm is not None
 
+    @patch.dict("os.environ", {"LLM_PROVIDER": "openrouter", "OPENROUTER_API_KEY": "test-key"})
+    def test_returns_openrouter_model(self) -> None:
+        from call_operator.llm.provider import get_llm
+
+        settings = Settings()
+        llm = get_llm(settings)
+        assert llm is not None
+
     @patch.dict("os.environ", {"LLM_PROVIDER": "unknown"})
     def test_raises_on_unknown_provider(self) -> None:
         from call_operator.llm.provider import get_llm
