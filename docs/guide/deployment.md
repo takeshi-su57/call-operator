@@ -114,8 +114,8 @@ For multi-tenant production use:
 Before releasing a new version:
 
 1. Update version in `pyproject.toml`
-2. Ensure all tests pass: `pytest`
-3. Ensure lint + type check pass: `ruff check src/ tests/ && mypy src/`
+2. Ensure all tests pass: `uv run pytest`
+3. Ensure lint + type check pass: `uv run ruff check src/ tests/ && uv run mypy src/`
 4. Build Docker image: `docker build -t call-operator .`
 5. Test the Docker image with a real meeting
 6. Tag the release: `git tag v0.1.0`

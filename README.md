@@ -23,6 +23,7 @@ Google Meet ──► Audio Capture ──► VAD ──► STT ──► LLM �
 ### Prerequisites
 
 - Python 3.12+
+- [uv](https://docs.astral.sh/uv/) (install: `curl -LsSf https://astral.sh/uv/install.sh | sh`)
 - At least one LLM API key (OpenAI, Anthropic, or Google)
 
 ### Setup
@@ -31,12 +32,8 @@ Google Meet ──► Audio Capture ──► VAD ──► STT ──► LLM �
 git clone <repo-url>
 cd call-operator
 
-python -m venv .venv
-source .venv/bin/activate        # Linux/macOS
-# source .venv/Scripts/activate  # Windows (Git Bash)
-
-pip install -e ".[dev]"
-playwright install chromium
+uv sync --all-extras             # Install all deps + create .venv
+uv run playwright install chromium
 
 cp .env.example .env
 # Edit .env with your API keys
@@ -45,7 +42,7 @@ cp .env.example .env
 ### Run
 
 ```bash
-python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
+uv run python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 ```
 
 ## Environment Variables
@@ -87,12 +84,13 @@ docs/                    # Architecture docs + guides
 
 | Command | Description |
 |---------|-------------|
-| `python -m call_operator join --url <url>` | Join a meeting |
-| `python -m call_operator --help` | Show CLI help |
-| `pytest` | Run tests |
-| `ruff check src/ tests/` | Lint |
-| `ruff format src/ tests/` | Format |
-| `mypy src/` | Type check |
+| `uv sync --all-extras` | Install all dependencies |
+| `uv run python -m call_operator join --url <url>` | Join a meeting |
+| `uv run python -m call_operator --help` | Show CLI help |
+| `uv run pytest` | Run tests |
+| `uv run ruff check src/ tests/` | Lint |
+| `uv run ruff format src/ tests/` | Format |
+| `uv run mypy src/` | Type check |
 
 ## Docker
 

@@ -2,6 +2,9 @@ FROM python:3.12-slim
 
 WORKDIR /app
 
+# Install uv
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /bin/
+
 # Install system deps for Playwright + audio processing
 RUN apt-get update && apt-get install -y --no-install-recommends \
     libnss3 libnspr4 libdbus-1-3 libatk1.0-0 libatk-bridge2.0-0 \
@@ -10,13 +13,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libasound2 libpulse0 \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
+# Copy project files
 COPY pyproject.toml README.md ./
 COPY src/ src/
-RUN pip install --no-cache-dir ".[all]"
+
+# Install dependencies with uv
+RUN uv sync --all-extras --no-dev --frozen
 
 # Install Playwright browser
-RUN playwright install chromium && playwright install-deps chromium
+RUN uv run playwright install chromium && uv run playwright install-deps chromium
 
 # Create data directory
 RUN mkdir -p /app/data
@@ -25,4 +30,4 @@ RUN mkdir -p /app/data
 ENV BROWSER_HEADLESS=true
 ENV LOG_LEVEL=INFO
 
-ENTRYPOINT ["call-operator"]
+ENTRYPOINT ["uv", "run", "call-operator"]

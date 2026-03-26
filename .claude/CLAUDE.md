@@ -17,6 +17,7 @@ Real-time AI meeting agent. Joins video calls (Google Meet), listens to particip
 | TTS | OpenAI TTS / ElevenLabs / Google Cloud TTS (configurable) |
 | Pipeline | asyncio queues (streaming stages) |
 | CLI | Typer + Rich |
+| Package Manager | uv |
 | Config | Pydantic Settings + python-dotenv |
 | Linting | Ruff |
 | Type Checking | mypy (strict) |
@@ -71,14 +72,14 @@ docs/                        → Architecture docs, guides
 ## Key Commands
 
 ```bash
-pip install -e ".[dev]"                          # Install with dev deps
-python -m call_operator join --url <meet-url>    # Join a meeting
-python -m call_operator --help                   # CLI help
-pytest                                           # Run tests
-ruff check src/ tests/                           # Lint
-ruff format src/ tests/                          # Format
-mypy src/                                        # Type check
-playwright install chromium                      # Install browser
+uv sync --all-extras                             # Install all deps (creates .venv)
+uv run python -m call_operator join --url <url>  # Join a meeting
+uv run python -m call_operator --help            # CLI help
+uv run pytest                                    # Run tests
+uv run ruff check src/ tests/                    # Lint
+uv run ruff format src/ tests/                   # Format
+uv run mypy src/                                 # Type check
+uv run playwright install chromium               # Install browser
 ```
 
 ## Conventions

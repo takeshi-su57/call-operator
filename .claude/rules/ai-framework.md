@@ -66,10 +66,10 @@ After completing any implementation task, verify:
 
 ### Quality checks
 ```bash
-ruff check src/ tests/     # Lint
-ruff format src/ tests/    # Format
-mypy src/                  # Type check
-pytest                     # Tests
+uv run ruff check src/ tests/     # Lint
+uv run ruff format src/ tests/    # Format
+uv run mypy src/                  # Type check
+uv run pytest                     # Tests
 ```
 
 ## CLAUDE.md Principles

@@ -7,7 +7,7 @@ How to set up, develop, and test call-operator locally.
 | Requirement | Version | Check |
 |-------------|---------|-------|
 | Python | 3.12+ | `python --version` |
-| pip | latest | `pip --version` |
+| uv | latest | `uv --version` ([install](https://docs.astral.sh/uv/)) |
 | Git | any | `git --version` |
 | LLM API key | — | At least one: OpenAI, Anthropic, or Google |
 
@@ -20,34 +20,20 @@ git clone <repo-url>
 cd call-operator
 ```
 
-### 2. Create a virtual environment
+### 2. Install dependencies
+
+uv automatically creates a virtual environment and installs everything:
 
 ```bash
-python -m venv .venv
+# Install with all providers + dev dependencies
+uv sync --all-extras
 
-# Activate it:
-# Linux/macOS
-source .venv/bin/activate
-
-# Windows (Git Bash)
-source .venv/Scripts/activate
-
-# Windows (PowerShell)
-.venv\Scripts\Activate.ps1
-```
-
-### 3. Install dependencies
-
-```bash
-# Install package with all providers + dev dependencies
-pip install -e ".[dev]"
-
-# Or install with specific providers only
-pip install -e ".[openai]"        # OpenAI LLM + TTS
-pip install -e ".[deepgram]"      # Deepgram STT
+# Or install with specific provider extras only
+uv sync --extra openai            # OpenAI LLM + TTS
+uv sync --extra deepgram          # Deepgram STT
 
 # Install Playwright browser binaries
-playwright install chromium
+uv run playwright install chromium
 ```
 
 ### 4. Configure environment
@@ -73,18 +59,18 @@ TTS_PROVIDER=openai
 TTS_VOICE=alloy
 ```
 
-### 5. Verify the setup
+### 4. Verify the setup
 
 ```bash
 # Check CLI loads
-python -m call_operator --help
+uv run python -m call_operator --help
 
 # Run tests
-pytest
+uv run pytest
 
 # Lint + type check
-ruff check src/ tests/
-mypy src/
+uv run ruff check src/ tests/
+uv run mypy src/
 ```
 
 ## Environment Variables
@@ -147,7 +133,7 @@ docs/                    # Architecture docs + guides
 
 ```bash
 # Join a Google Meet
-python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
+uv run python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 ```
 
 ### Debugging with visible browser
@@ -155,7 +141,7 @@ python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 Set `BROWSER_HEADLESS=false` in `.env` to watch Playwright interact with Google Meet:
 
 ```bash
-BROWSER_HEADLESS=false python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
+BROWSER_HEADLESS=false uv run python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 ```
 
 ### Adding a new meeting adapter
@@ -182,17 +168,18 @@ BROWSER_HEADLESS=false python -m call_operator join --url "https://meet.google.c
 
 | Command | Description |
 |---------|-------------|
-| `python -m call_operator join --url <url>` | Join a meeting |
-| `python -m call_operator --help` | Show CLI help |
-| `pytest` | Run all tests |
-| `pytest -v` | Run tests (verbose) |
-| `pytest -k test_name` | Run specific test |
-| `pytest --cov=call_operator` | Run with coverage |
-| `ruff check src/ tests/` | Lint code |
-| `ruff check --fix src/ tests/` | Auto-fix lint issues |
-| `ruff format src/ tests/` | Format code |
-| `mypy src/` | Type check |
-| `playwright install chromium` | Install/update browser |
+| `uv sync --all-extras` | Install all dependencies |
+| `uv run python -m call_operator join --url <url>` | Join a meeting |
+| `uv run python -m call_operator --help` | Show CLI help |
+| `uv run pytest` | Run all tests |
+| `uv run pytest -v` | Run tests (verbose) |
+| `uv run pytest -k test_name` | Run specific test |
+| `uv run pytest --cov=call_operator` | Run with coverage |
+| `uv run ruff check src/ tests/` | Lint code |
+| `uv run ruff check --fix src/ tests/` | Auto-fix lint issues |
+| `uv run ruff format src/ tests/` | Format code |
+| `uv run mypy src/` | Type check |
+| `uv run playwright install chromium` | Install/update browser |
 
 ## Testing
 
@@ -200,13 +187,13 @@ Tests live in `tests/`. Shared fixtures are in `tests/conftest.py`.
 
 ```bash
 # Run all tests
-pytest
+uv run pytest
 
 # Run with coverage
-pytest --cov=call_operator
+uv run pytest --cov=call_operator
 
 # Run specific test file
-pytest tests/test_config.py
+uv run pytest tests/test_config.py
 ```
 
 Key principle: **always mock external I/O** (LLM calls, browser, STT/TTS APIs). See `.claude/rules/testing.md` for mocking patterns.
@@ -216,10 +203,10 @@ Key principle: **always mock external I/O** (LLM calls, browser, STT/TTS APIs). 
 All code must pass before committing:
 
 ```bash
-ruff check src/ tests/     # No lint errors
-ruff format src/ tests/    # Consistent formatting
-mypy src/                  # No type errors
-pytest                     # All tests pass
+uv run ruff check src/ tests/     # No lint errors
+uv run ruff format src/ tests/    # Consistent formatting
+uv run mypy src/                  # No type errors
+uv run pytest                     # All tests pass
 ```
 
 ## Commit Conventions
@@ -247,9 +234,9 @@ playwright install-deps chromium
 
 ### Import errors after install
 
-Make sure you installed in editable mode:
+Make sure you installed with uv:
 ```bash
-pip install -e ".[dev]"
+uv sync --all-extras
 ```
 
 ### LLM calls fail

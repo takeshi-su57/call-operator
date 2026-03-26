@@ -19,18 +19,18 @@ Every subsequent issue depends on a working project skeleton. The editable insta
 - [ ] Create `src/call_operator/__main__.py` that calls the Typer app
 - [ ] Create `src/call_operator/main.py` with Typer CLI app and a `run` command stub
 - [ ] Create empty `tests/__init__.py` and `tests/conftest.py`
-- [ ] Verify `pip install -e ".[dev]"` succeeds
-- [ ] Verify `python -m call_operator --help` prints usage
-- [ ] Verify `ruff check src/ tests/` passes with no errors
-- [ ] Verify `mypy src/` passes
+- [ ] Verify `uv sync --all-extras` succeeds
+- [ ] Verify `uv run python -m call_operator --help` prints usage
+- [ ] Verify `uv run ruff check src/ tests/` passes with no errors
+- [ ] Verify `uv run mypy src/` passes
 
 ## Acceptance Criteria
 
-- [ ] `pip install -e ".[dev]"` completes without errors
-- [ ] `python -m call_operator --help` displays CLI help with the `run` command listed
-- [ ] `ruff check src/ tests/` exits 0
-- [ ] `ruff format --check src/ tests/` exits 0
-- [ ] `mypy src/` exits 0 with strict mode
+- [ ] `uv sync --all-extras` completes without errors
+- [ ] `uv run python -m call_operator --help` displays CLI help with the `join` command listed
+- [ ] `uv run ruff check src/ tests/` exits 0
+- [ ] `uv run ruff format --check src/ tests/` exits 0
+- [ ] `uv run mypy src/` exits 0 with strict mode
 - [ ] Project structure matches the layout defined in CLAUDE.md
 
 ## Dependencies

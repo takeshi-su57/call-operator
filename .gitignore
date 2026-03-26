@@ -42,5 +42,8 @@ htmlcov/
 # Ruff
 .ruff_cache/
 
+# uv
+uv.lock
+
 # Docker
 docker-compose.override.yml
