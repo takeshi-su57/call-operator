@@ -29,11 +29,11 @@ def get_llm(settings: Settings) -> BaseChatModel:
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(model=model, api_key=settings.anthropic_api_key)  # type: ignore[arg-type]
+        return ChatAnthropic(model_name=model, api_key=settings.anthropic_api_key)  # type: ignore[arg-type,call-arg]
     elif provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        return ChatGoogleGenerativeAI(model=model, google_api_key=settings.google_api_key)  # type: ignore[arg-type]
+        return ChatGoogleGenerativeAI(model=model, google_api_key=settings.google_api_key)
     else:
         msg = f"Unknown LLM provider: {provider}"
         raise ValueError(msg)

@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
 
 
 @dataclass
@@ -29,7 +32,7 @@ class MeetingAdapter(ABC):
         ...
 
     @abstractmethod
-    async def capture_audio(self) -> AsyncIterator[AudioChunk]:
+    def capture_audio(self) -> AsyncIterator[AudioChunk]:
         """Yield audio chunks captured from the meeting."""
         ...
 

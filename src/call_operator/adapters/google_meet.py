@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from call_operator.adapters.base import AudioChunk, MeetingAdapter
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from call_operator.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ class GoogleMeetAdapter(MeetingAdapter):
         # TODO: Stream audio from browser via Web Audio API / MediaRecorder
         # TODO: Yield AudioChunk objects at regular intervals
         logger.warning("GoogleMeetAdapter.capture_audio() is not yet implemented.")
-        return  # type: ignore[return-value]
+        return
         yield  # Make this an async generator
 
     async def play_audio(self, audio: AudioChunk) -> None:
