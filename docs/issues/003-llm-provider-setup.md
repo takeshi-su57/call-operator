@@ -21,38 +21,45 @@ The conversation engine is the brain of the agent — it processes transcribed s
 
 ## Remaining Tasks
 
-- [ ] Create `ConversationEngine` class in `llm/conversation.py`
-  - [ ] `__init__(self, settings: Settings)` — initialize LLM via `get_llm()`, load system prompt
-  - [ ] `async def process_transcript(self, text: str) -> str` — add user message, invoke LLM, return response
-  - [ ] `def reset(self)` — clear conversation history
-  - [ ] Manage conversation history as a list of LangChain messages
-  - [ ] Truncate history when it exceeds context window limits
-- [ ] Wire `ConversationEngine` into `conversation_stage()` — read from in_queue, call `process_transcript`, push to out_queue
-- [ ] Add `{bot_name}` placeholder to `SYSTEM_PROMPT` (use `bot_name` from Settings)
-- [ ] Add tests for `ConversationEngine` (mocked LLM):
-  - [ ] `process_transcript` returns a string response
-  - [ ] Conversation history accumulates messages
-  - [ ] `reset()` clears history
-  - [ ] System prompt is included in first LLM call
+- [x] Create `ConversationEngine` class in `llm/conversation.py`
+  - [x] `__init__(self, settings: Settings)` — initialize LLM via `get_llm()`, load system prompt
+  - [x] `async def process_transcript(self, text: str) -> str` — add user message, invoke LLM, return response
+  - [x] `def reset(self)` — clear conversation history
+  - [x] Manage conversation history as a list of LangChain messages (`SystemMessage`, `HumanMessage`, `AIMessage`)
+  - [x] Truncate history when it exceeds `llm_max_history_messages` (keeps system message + last N)
+- [x] Wire `ConversationEngine` into `conversation_stage()` — read from in_queue, call `process_transcript`, push to out_queue
+- [x] Add `{bot_name}` placeholder to `SYSTEM_PROMPT` (use `bot_name` from Settings)
+- [x] Pass `llm_temperature` through `get_llm()` to all provider constructors
+- [x] Add `llm_max_history_messages` field to Settings (default: 20)
+- [x] Add tests for `ConversationEngine` (mocked LLM):
+  - [x] `process_transcript` returns a string response
+  - [x] Conversation history accumulates messages
+  - [x] `reset()` clears history
+  - [x] System prompt includes bot_name
+  - [x] History truncation respects max limit
+  - [x] `conversation_stage()` reads from in_queue and writes to out_queue
+  - [x] Stage continues processing after LLM errors
 
 ## Acceptance Criteria
 
-- [ ] `ConversationEngine` can be instantiated with mocked settings
-- [ ] `process_transcript("hello")` returns a non-empty string (mocked LLM)
-- [ ] Conversation history grows with each call
-- [ ] `reset()` clears history back to system prompt only
-- [ ] `conversation_stage()` reads from in_queue and writes to out_queue
-- [ ] `uv run ruff check src/ tests/` exits 0
-- [ ] `uv run mypy src/` exits 0 strict
-- [ ] All tests pass
+- [x] `ConversationEngine` can be instantiated with mocked settings
+- [x] `process_transcript("hello")` returns a non-empty string (mocked LLM)
+- [x] Conversation history grows with each call
+- [x] `reset()` clears history back to system prompt only
+- [x] `conversation_stage()` reads from in_queue and writes to out_queue
+- [x] `uv run ruff check src/ tests/` exits 0
+- [x] `uv run mypy src/` exits 0 strict
+- [x] All 29 tests pass
 
 ## Dependencies
 
 - 001 — Project Setup (done)
-- 002 — Config and Environment (needs `bot_name`, `llm_temperature`)
+- 002 — Config and Environment (done — `bot_name`, `llm_temperature`, `llm_max_history_messages`)
 
-## Files to Modify
+## Files Modified
 
-- `src/call_operator/llm/conversation.py`
-- `src/call_operator/prompts/conversation.py`
-- `tests/test_llm.py` (or new `tests/test_conversation.py`)
+- `src/call_operator/config.py` — added `llm_max_history_messages` field
+- `src/call_operator/llm/conversation.py` — implemented `ConversationEngine` class + wired `conversation_stage()`
+- `src/call_operator/llm/provider.py` — pass `temperature` to all provider constructors
+- `src/call_operator/prompts/conversation.py` — added `{bot_name}` placeholder to `SYSTEM_PROMPT`
+- `tests/test_conversation.py` — new file with 8 tests (engine + stage)

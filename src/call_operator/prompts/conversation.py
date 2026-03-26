@@ -1,8 +1,8 @@
 """Prompt templates for the conversation engine."""
 
 SYSTEM_PROMPT = """\
-You are an AI meeting participant. You are joining a live video call and \
-interacting with other participants in real time via voice.
+You are {bot_name}, an AI meeting participant. You are joining a live video call \
+and interacting with other participants in real time via voice.
 
 Guidelines:
 - Be concise — you are speaking, not writing. Keep responses short and natural.

@@ -25,15 +25,27 @@ def get_llm(settings: Settings) -> BaseChatModel:
     if provider == "openai":
         from langchain_openai import ChatOpenAI
 
-        return ChatOpenAI(model=model, api_key=settings.openai_api_key)  # type: ignore[arg-type]
+        return ChatOpenAI(
+            model=model,
+            api_key=settings.openai_api_key,  # type: ignore[arg-type]
+            temperature=settings.llm_temperature,
+        )
     elif provider == "anthropic":
         from langchain_anthropic import ChatAnthropic
 
-        return ChatAnthropic(model_name=model, api_key=settings.anthropic_api_key)  # type: ignore[arg-type,call-arg]
+        return ChatAnthropic(  # type: ignore[call-arg]
+            model_name=model,
+            api_key=settings.anthropic_api_key,  # type: ignore[arg-type]
+            temperature=settings.llm_temperature,
+        )
     elif provider == "google":
         from langchain_google_genai import ChatGoogleGenerativeAI
 
-        return ChatGoogleGenerativeAI(model=model, google_api_key=settings.google_api_key)
+        return ChatGoogleGenerativeAI(
+            model=model,
+            google_api_key=settings.google_api_key,
+            temperature=settings.llm_temperature,
+        )
     elif provider == "openrouter":
         from langchain_openai import ChatOpenAI
 
@@ -41,6 +53,7 @@ def get_llm(settings: Settings) -> BaseChatModel:
             model=model,
             api_key=settings.openrouter_api_key,  # type: ignore[arg-type]
             base_url="https://openrouter.ai/api/v1",
+            temperature=settings.llm_temperature,
         )
     else:
         msg = f"Unknown LLM provider: {provider}"
