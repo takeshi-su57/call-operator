@@ -52,18 +52,27 @@ uv run python -m call_operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 |----------|----------|---------|-------------|
 | `LLM_PROVIDER` | Yes | `openai` | LLM provider: `openai`, `anthropic`, `google`, `openrouter` |
 | `LLM_MODEL` | Yes | `gpt-4o` | Model name |
+| `LLM_TEMPERATURE` | No | `0.7` | LLM response temperature |
 | `OPENAI_API_KEY` | If provider=openai | — | OpenAI API key |
 | `ANTHROPIC_API_KEY` | If provider=anthropic | — | Anthropic API key |
 | `GOOGLE_API_KEY` | If provider=google | — | Google AI API key |
 | `OPENROUTER_API_KEY` | If provider=openrouter | — | OpenRouter API key |
 | `STT_PROVIDER` | No | `whisper_local` | STT: `whisper_local`, `deepgram` |
 | `STT_MODEL` | No | `tiny` | Whisper model size or Deepgram model |
+| `STT_LANGUAGE` | No | `en` | Language code for transcription |
 | `DEEPGRAM_API_KEY` | If stt=deepgram | — | Deepgram API key |
 | `TTS_PROVIDER` | No | `openai` | TTS: `openai`, `elevenlabs`, `google` |
 | `TTS_VOICE` | No | `alloy` | Voice name (provider-specific) |
+| `TTS_SPEED` | No | `1.0` | TTS playback speed |
 | `ELEVENLABS_API_KEY` | If tts=elevenlabs | — | ElevenLabs API key |
 | `BROWSER_HEADLESS` | No | `true` | `false` to see the browser |
+| `BROWSER_TIMEOUT` | No | `30000` | Browser action timeout (ms) |
 | `LOG_LEVEL` | No | `INFO` | `DEBUG` for verbose output |
+| `AUDIO_SAMPLE_RATE` | No | `16000` | Audio sample rate in Hz |
+| `VAD_THRESHOLD` | No | `0.5` | VAD speech probability threshold |
+| `RECORD_AUDIO` | No | `false` | Save audio recordings to data/ |
+| `AUDIO_CHUNK_MS` | No | `30` | Audio chunk size in ms |
+| `BOT_NAME` | No | `AI Assistant` | Display name in meetings |
 
 ## Project Structure
 

@@ -2,47 +2,57 @@
 
 ## Description
 
-Implement a LangChain-based LLM provider factory in `llm/provider.py` that returns a `BaseChatModel` based on the configured `LLM_PROVIDER` env var. Support OpenAI, Anthropic, and Google with lazy imports so only the selected provider's package is required. Create a stub conversation engine in `llm/conversation.py` and a system prompt template in `prompts/conversation.py`.
+Implement the conversation engine that connects the LLM provider factory to the async pipeline. The provider factory (`get_llm()`) and prompt templates already exist from issue 001. This issue focuses on building the `ConversationEngine` class that manages conversation history, processes transcripts, and generates responses.
 
 ## Motivation
 
-The conversation engine is the brain of the agent — it processes transcribed speech and generates responses. The provider factory abstracts away LLM vendor differences, making it trivial to switch providers. Lazy imports avoid requiring all three SDK packages when only one is used.
+The conversation engine is the brain of the agent — it processes transcribed speech and generates responses. The pipeline stage (`conversation_stage`) needs a stateful engine to maintain conversation history across turns and manage the context window.
 
-## Tasks
+## Already Done (from issue 001)
 
-- [ ] Create `src/call_operator/llm/__init__.py`
-- [ ] Create `src/call_operator/llm/provider.py` with `get_llm() -> BaseChatModel`
-- [ ] Implement OpenAI provider: lazy import `langchain_openai.ChatOpenAI`, configure with `OPENAI_API_KEY` and `LLM_MODEL`
-- [ ] Implement Anthropic provider: lazy import `langchain_anthropic.ChatAnthropic`, configure with `ANTHROPIC_API_KEY` and `LLM_MODEL`
-- [ ] Implement Google provider: lazy import `langchain_google_genai.ChatGoogleGenerativeAI`, configure with `GOOGLE_API_KEY` and `LLM_MODEL`
-- [ ] Raise clear error if provider is unknown or API key is missing
-- [ ] Set default model names per provider (gpt-4o, claude-sonnet-4-20250514, gemini-2.0-flash) when `LLM_MODEL` is not set
-- [ ] Create `src/call_operator/llm/conversation.py` with stub `ConversationEngine` class
-- [ ] Stub methods: `__init__(self)`, `async process_transcript(self, text: str) -> str`, `reset(self)`
-- [ ] Create `src/call_operator/prompts/__init__.py`
-- [ ] Create `src/call_operator/prompts/conversation.py` with `SYSTEM_PROMPT` constant — template for meeting assistant behavior
-- [ ] Add unit test in `tests/test_llm_provider.py` verifying factory returns correct types (mocked)
+- [x] `llm/provider.py` with `get_llm(settings) -> BaseChatModel`
+- [x] OpenAI, Anthropic, Google, OpenRouter providers with lazy imports
+- [x] Unknown provider raises `ValueError`
+- [x] `llm/conversation.py` with `conversation_stage()` stub (pipeline stage signature)
+- [x] `prompts/conversation.py` with `SYSTEM_PROMPT` and `RESPONSE_TEMPLATE`
+- [x] `prompts/__init__.py`
+- [x] `llm/__init__.py`
+- [x] Tests: factory returns correct types, unknown provider raises
+
+## Remaining Tasks
+
+- [ ] Create `ConversationEngine` class in `llm/conversation.py`
+  - [ ] `__init__(self, settings: Settings)` — initialize LLM via `get_llm()`, load system prompt
+  - [ ] `async def process_transcript(self, text: str) -> str` — add user message, invoke LLM, return response
+  - [ ] `def reset(self)` — clear conversation history
+  - [ ] Manage conversation history as a list of LangChain messages
+  - [ ] Truncate history when it exceeds context window limits
+- [ ] Wire `ConversationEngine` into `conversation_stage()` — read from in_queue, call `process_transcript`, push to out_queue
+- [ ] Add `{bot_name}` placeholder to `SYSTEM_PROMPT` (use `bot_name` from Settings)
+- [ ] Add tests for `ConversationEngine` (mocked LLM):
+  - [ ] `process_transcript` returns a string response
+  - [ ] Conversation history accumulates messages
+  - [ ] `reset()` clears history
+  - [ ] System prompt is included in first LLM call
 
 ## Acceptance Criteria
 
-- [ ] `get_llm()` returns a `ChatOpenAI` when `LLM_PROVIDER=openai`
-- [ ] `get_llm()` returns a `ChatAnthropic` when `LLM_PROVIDER=anthropic`
-- [ ] `get_llm()` returns a `ChatGoogleGenerativeAI` when `LLM_PROVIDER=google`
-- [ ] Missing API key raises `ValueError` with a helpful message
-- [ ] Unknown provider raises `ValueError`
-- [ ] `ConversationEngine` can be instantiated and `process_transcript` returns a string
-- [ ] `SYSTEM_PROMPT` contains `{bot_name}` placeholder
-- [ ] All files pass `ruff check` and `mypy --strict`
+- [ ] `ConversationEngine` can be instantiated with mocked settings
+- [ ] `process_transcript("hello")` returns a non-empty string (mocked LLM)
+- [ ] Conversation history grows with each call
+- [ ] `reset()` clears history back to system prompt only
+- [ ] `conversation_stage()` reads from in_queue and writes to out_queue
+- [ ] `uv run ruff check src/ tests/` exits 0
+- [ ] `uv run mypy src/` exits 0 strict
+- [ ] All tests pass
 
 ## Dependencies
 
-- 002 — Config and Environment (needs `get_settings()` for API keys and provider selection)
+- 001 — Project Setup (done)
+- 002 — Config and Environment (needs `bot_name`, `llm_temperature`)
 
-## Files to Create/Modify
+## Files to Modify
 
-- `src/call_operator/llm/__init__.py`
-- `src/call_operator/llm/provider.py`
 - `src/call_operator/llm/conversation.py`
-- `src/call_operator/prompts/__init__.py`
 - `src/call_operator/prompts/conversation.py`
-- `tests/test_llm_provider.py`
+- `tests/test_llm.py` (or new `tests/test_conversation.py`)
