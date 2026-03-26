@@ -1,0 +1,11 @@
+services:
+  agent:
+    build: .
+    env_file: .env
+    volumes:
+      - ./data:/app/data
+    environment:
+      - BROWSER_HEADLESS=true
+      - LOG_LEVEL=INFO
+    # Override entrypoint for interactive use:
+    # docker compose run --rm agent join --url "https://meet.google.com/xxx-yyyy-zzz"
