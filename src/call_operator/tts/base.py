@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-from call_operator.adapters.base import AudioChunk
+if TYPE_CHECKING:
+    from call_operator.adapters.base import AudioChunk
 
 
 class TTSProvider(ABC):

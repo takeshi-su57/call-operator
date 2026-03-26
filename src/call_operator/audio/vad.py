@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
+from typing import TYPE_CHECKING
 
-from call_operator.adapters.base import AudioChunk
+if TYPE_CHECKING:
+    import asyncio
+
+    from call_operator.adapters.base import AudioChunk
 
 logger = logging.getLogger(__name__)
 

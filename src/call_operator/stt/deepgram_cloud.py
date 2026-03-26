@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import logging
-from collections.abc import AsyncIterator
 from typing import TYPE_CHECKING
 
 from call_operator.stt.base import STTProvider, Transcript
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from call_operator.adapters.base import AudioChunk
 
 logger = logging.getLogger(__name__)
@@ -31,5 +32,5 @@ class DeepgramSTT(STTProvider):
         # TODO: Receive transcription results
         # TODO: Yield Transcript objects (interim + final)
         logger.warning("DeepgramSTT.transcribe_stream() is not yet implemented.")
-        return  # type: ignore[return-value]
+        return
         yield  # Make this an async generator

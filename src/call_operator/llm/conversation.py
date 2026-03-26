@@ -2,11 +2,12 @@
 
 from __future__ import annotations
 
-import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import asyncio
+
     from call_operator.config import Settings
     from call_operator.stt.base import Transcript
 

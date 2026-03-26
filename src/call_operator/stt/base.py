@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import AsyncIterator
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    from collections.abc import AsyncIterator
+
     from call_operator.adapters.base import AudioChunk
 
 
@@ -26,7 +27,7 @@ class STTProvider(ABC):
     """Interface for Speech-to-Text providers."""
 
     @abstractmethod
-    async def transcribe_stream(
+    def transcribe_stream(
         self,
         audio_stream: AsyncIterator[AudioChunk],
     ) -> AsyncIterator[Transcript]:
