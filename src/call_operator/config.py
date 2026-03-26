@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     llm_model: str = "gpt-4o"
     llm_temperature: float = 0.7
+    llm_max_history_messages: int = 20
     openai_api_key: str = ""
     anthropic_api_key: str = ""
     google_api_key: str = ""
