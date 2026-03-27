@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING
 from call_operator.adapters.base import AudioChunk, MeetingAdapter
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
     from call_operator.config import Settings
 
 logger = logging.getLogger(__name__)
@@ -26,30 +24,34 @@ class GoogleMeetAdapter(MeetingAdapter):
         self.settings = settings
         self._browser = None
         self._page = None
+        self._connected = False
 
-    async def join(self, url: str) -> None:
+    async def connect(self, url: str) -> None:
         """Join a Google Meet session via Playwright."""
         # TODO: Launch Playwright browser
         # TODO: Navigate to the Meet URL
         # TODO: Handle "Join now" button and permissions
         # TODO: Set up audio capture via Web Audio API
-        logger.warning("GoogleMeetAdapter.join() is not yet implemented.")
+        logger.warning("GoogleMeetAdapter.connect() is not yet implemented.")
 
-    async def capture_audio(self) -> AsyncIterator[AudioChunk]:
-        """Capture audio from the Google Meet session."""
-        # TODO: Stream audio from browser via Web Audio API / MediaRecorder
-        # TODO: Yield AudioChunk objects at regular intervals
-        logger.warning("GoogleMeetAdapter.capture_audio() is not yet implemented.")
-        return
-        yield  # Make this an async generator
+    async def read_audio(self) -> bytes | None:
+        """Read audio from the Google Meet session."""
+        # TODO: Read audio from browser via Web Audio API / MediaRecorder
+        logger.warning("GoogleMeetAdapter.read_audio() is not yet implemented.")
+        return None
 
     async def play_audio(self, audio: AudioChunk) -> None:
         """Play audio into the Google Meet session."""
         # TODO: Inject audio into the browser via Web Audio API
         logger.warning("GoogleMeetAdapter.play_audio() is not yet implemented.")
 
-    async def leave(self) -> None:
+    async def disconnect(self) -> None:
         """Leave the Google Meet session and clean up."""
         # TODO: Click leave button
         # TODO: Close browser
-        logger.warning("GoogleMeetAdapter.leave() is not yet implemented.")
+        self._connected = False
+        logger.warning("GoogleMeetAdapter.disconnect() is not yet implemented.")
+
+    def is_connected(self) -> bool:
+        """Return whether the adapter is connected to a meeting."""
+        return self._connected

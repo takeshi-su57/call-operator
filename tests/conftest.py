@@ -15,7 +15,13 @@ from call_operator.stt.base import Transcript
 def sample_audio_chunk() -> AudioChunk:
     """A sample audio chunk with dummy PCM data."""
     # 30ms of silence at 16kHz mono (480 samples * 2 bytes)
-    return AudioChunk(data=b"\x00" * 960, sample_rate=16000, channels=1)
+    return AudioChunk(
+        data=b"\x00" * 960,
+        sample_rate=16000,
+        channels=1,
+        timestamp=0.0,
+        duration_ms=30.0,
+    )
 
 
 @pytest.fixture
