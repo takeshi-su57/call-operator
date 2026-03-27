@@ -89,6 +89,7 @@ disallow_untyped_defs = true
 module = [
     "faster_whisper.*",
     "silero_vad.*",
+    "torch.*",
     "deepgram.*",
     "elevenlabs.*",
 ]

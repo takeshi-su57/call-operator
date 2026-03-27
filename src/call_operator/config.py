@@ -46,7 +46,7 @@ class Settings(BaseSettings):
     audio_sample_rate: int = 16000
     vad_threshold: float = 0.5
     record_audio: bool = False
-    audio_chunk_ms: int = 30
+    audio_chunk_ms: int = 32
 
     # Bot
     bot_name: str = "AI Assistant"
