@@ -30,9 +30,9 @@ docs: update deployment guide
 
 ## Motivation
 
-<!-- Why is this change needed? Link to the full issue URL (issues live in a separate repo) -->
+<!-- Why is this change needed? Link to the full issue URL -->
 
-Resolves https://github.com/takeshi-su57/lucky-plan/issues/123
+Resolves https://github.com/takeshi-su57/call-operator/issues/123
 
 ## Changes
 
@@ -85,7 +85,7 @@ Resolves https://github.com/takeshi-su57/lucky-plan/issues/123
 1. **Keep PRs small** — easier to review, fewer bugs, faster merge
 2. **One concern per PR** — don't mix features, fixes, and refactors
 3. **Descriptive title** — reviewers should understand the change at a glance
-4. **Link issues** — use the full issue URL (e.g. `Resolves https://github.com/takeshi-su57/lucky-plan/issues/123`) since issues live in a separate repository. Never use shorthand `#123` references
+4. **Link issues** — use the full issue URL (e.g. `Resolves https://github.com/takeshi-su57/call-operator/issues/123`). Never use shorthand `#123` references
 5. **Self-review first** — review your own diff before requesting others
 6. **Add context** — explain _why_, not just _what_ changed
 7. **Use draft PRs** — for work-in-progress to get early feedback

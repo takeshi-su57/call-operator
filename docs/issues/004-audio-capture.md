@@ -10,34 +10,39 @@ Audio capture is the entry point of the entire pipeline. Every downstream stage 
 
 ## Tasks
 
-- [ ] Create `src/call_operator/audio/__init__.py`
-- [ ] Create `src/call_operator/audio/capture.py`
-- [ ] Define `AudioChunk` dataclass with fields: `data` (bytes), `sample_rate` (int), `channels` (int), `timestamp` (float), `duration_ms` (float)
-- [ ] Implement `capture_stage(adapter: MeetingAdapter, output_queue: asyncio.Queue[AudioChunk]) -> None`
-- [ ] The stage loops: calls `adapter.read_audio()`, wraps result in `AudioChunk`, puts on queue
-- [ ] Handle adapter disconnection gracefully — log and attempt to continue
-- [ ] Use a sentinel value (`None`) on the queue to signal end-of-stream
-- [ ] Create `src/call_operator/adapters/__init__.py`
-- [ ] Create `src/call_operator/adapters/base.py` with abstract `MeetingAdapter` class
-- [ ] Define abstract methods: `async connect(url: str)`, `async read_audio() -> bytes | None`, `async play_audio(chunk: AudioChunk)`, `async disconnect()`, `is_connected() -> bool`
-- [ ] Add `__aenter__` and `__aexit__` to `MeetingAdapter` for context manager support
+- [x] Create `src/call_operator/audio/__init__.py`
+- [x] Create `src/call_operator/audio/capture.py`
+- [x] Define `AudioChunk` frozen dataclass with fields: `data` (bytes), `sample_rate` (int, default 16000), `channels` (int, default 1), `timestamp` (float, default 0.0), `duration_ms` (float, default 0.0)
+- [x] Implement `capture_stage(adapter: MeetingAdapter, output_queue: asyncio.Queue[AudioChunk | None]) -> None`
+- [x] The stage loops: calls `adapter.read_audio()`, wraps result in `AudioChunk` with calculated `timestamp` (monotonic) and `duration_ms`, puts on queue
+- [x] Handle adapter disconnection gracefully — log error, check `is_connected()`, continue or exit
+- [x] Use a sentinel value (`None`) on the queue to signal end-of-stream
+- [x] Create `src/call_operator/adapters/__init__.py`
+- [x] Create `src/call_operator/adapters/base.py` with abstract `MeetingAdapter` class
+- [x] Define abstract methods: `async connect(url: str)`, `async read_audio() -> bytes | None`, `async play_audio(chunk: AudioChunk)`, `async disconnect()`, `is_connected() -> bool`
+- [x] Add `__aenter__` and `__aexit__` to `MeetingAdapter` for context manager support
+- [x] Update `GoogleMeetAdapter` stub to match new `MeetingAdapter` interface
+- [x] Add 9 tests in `tests/test_capture.py` covering AudioChunk, MeetingAdapter, and capture_stage
 
 ## Acceptance Criteria
 
-- [ ] `AudioChunk` can be instantiated with all fields and is immutable (frozen dataclass)
-- [ ] `MeetingAdapter` is abstract and cannot be instantiated directly
-- [ ] `capture_stage()` reads from adapter and populates the output queue
-- [ ] When `read_audio()` returns `None`, capture stage puts sentinel and exits
-- [ ] Queue backpressure is handled (bounded queue with configurable max size)
-- [ ] All files pass `ruff check` and `mypy --strict`
+- [x] `AudioChunk` can be instantiated with all fields and is immutable (frozen dataclass)
+- [x] `MeetingAdapter` is abstract and cannot be instantiated directly
+- [x] `capture_stage()` reads from adapter and populates the output queue
+- [x] When `read_audio()` returns `None`, capture stage puts sentinel and exits
+- [x] Queue backpressure is handled (bounded queue with configurable max size)
+- [x] All files pass `ruff check` and `mypy --strict`
 
 ## Dependencies
 
 - 001 — Project Setup (package structure must exist)
 
-## Files to Create/Modify
+## Files Created/Modified
 
-- `src/call_operator/audio/__init__.py`
-- `src/call_operator/audio/capture.py`
-- `src/call_operator/adapters/__init__.py`
-- `src/call_operator/adapters/base.py`
+- `src/call_operator/audio/__init__.py` (already existed)
+- `src/call_operator/audio/capture.py` — `capture_stage()` implementation
+- `src/call_operator/adapters/__init__.py` (already existed)
+- `src/call_operator/adapters/base.py` — `AudioChunk` frozen dataclass + `MeetingAdapter` ABC
+- `src/call_operator/adapters/google_meet.py` — updated stub to new interface
+- `tests/conftest.py` — updated `sample_audio_chunk` fixture with new fields
+- `tests/test_capture.py` — 9 tests for AudioChunk, MeetingAdapter, capture_stage
