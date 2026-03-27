@@ -8,8 +8,6 @@ from typing import TYPE_CHECKING
 from call_operator.stt.base import STTProvider, Transcript
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
     from call_operator.adapters.base import AudioChunk
 
 logger = logging.getLogger(__name__)
@@ -22,15 +20,18 @@ class DeepgramSTT(STTProvider):
         self.api_key = api_key
         self.model = model
 
-    async def transcribe_stream(
-        self,
-        audio_stream: AsyncIterator[AudioChunk],
-    ) -> AsyncIterator[Transcript]:
-        """Transcribe audio via Deepgram's streaming WebSocket API."""
+    async def start(self) -> None:
+        """Open WebSocket connection to Deepgram."""
         # TODO: Open WebSocket connection to Deepgram
-        # TODO: Stream audio chunks to the WebSocket
-        # TODO: Receive transcription results
-        # TODO: Yield Transcript objects (interim + final)
-        logger.warning("DeepgramSTT.transcribe_stream() is not yet implemented.")
-        return
-        yield  # Make this an async generator
+        logger.warning("DeepgramSTT.start() is not yet implemented.")
+
+    async def transcribe(self, chunk: AudioChunk) -> Transcript | None:
+        """Stream an audio chunk to Deepgram and return any result."""
+        # TODO: Send audio chunk via WebSocket, receive transcription
+        logger.warning("DeepgramSTT.transcribe() is not yet implemented.")
+        return None
+
+    async def stop(self) -> None:
+        """Close WebSocket connection."""
+        # TODO: Close WebSocket connection
+        logger.warning("DeepgramSTT.stop() is not yet implemented.")

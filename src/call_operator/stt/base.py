@@ -7,8 +7,6 @@ from dataclasses import dataclass, field
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator
-
     from call_operator.adapters.base import AudioChunk
 
 
@@ -19,22 +17,42 @@ class Transcript:
     text: str
     speaker: str | None = None
     confidence: float = 0.0
+    language: str = ""
     is_final: bool = True
     metadata: dict[str, str] = field(default_factory=dict)
+    timestamp: float = 0.0
 
 
 class STTProvider(ABC):
-    """Interface for Speech-to-Text providers."""
+    """Interface for Speech-to-Text providers.
+
+    Lifecycle: ``start()`` → ``transcribe()`` (repeated) → ``flush()`` → ``stop()``.
+    """
 
     @abstractmethod
-    def transcribe_stream(
-        self,
-        audio_stream: AsyncIterator[AudioChunk],
-    ) -> AsyncIterator[Transcript]:
-        """Transcribe a stream of audio chunks into text.
+    async def start(self) -> None:
+        """Initialize resources (e.g. load model, open connection)."""
+        ...
 
-        Yields Transcript objects as speech is recognized.
+    @abstractmethod
+    async def transcribe(self, chunk: AudioChunk) -> Transcript | None:
+        """Process one audio chunk.
+
+        Returns a :class:`Transcript` when enough audio has been buffered,
+        or ``None`` if still accumulating.
         """
+        ...
+
+    async def flush(self) -> Transcript | None:
+        """Transcribe any remaining buffered audio.
+
+        Called at end-of-stream. Default returns ``None`` (no buffering).
+        """
+        return None
+
+    @abstractmethod
+    async def stop(self) -> None:
+        """Release resources."""
         ...
 
 
