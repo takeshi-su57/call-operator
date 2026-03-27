@@ -25,7 +25,7 @@ class TestSettings:
         assert settings.stt_language == "en"
         assert settings.tts_speed == 1.0
         assert settings.browser_timeout == 30000
-        assert settings.audio_chunk_ms == 30
+        assert settings.audio_chunk_ms == 32
         assert settings.bot_name == "AI Assistant"
 
     @patch.dict("os.environ", {"LLM_PROVIDER": "anthropic", "ANTHROPIC_API_KEY": "test-key"})
