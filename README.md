@@ -1,5 +1,7 @@
 # call-operator
 
+[![CI](https://github.com/takeshi-su57/call-operator/actions/workflows/ci.yml/badge.svg)](https://github.com/takeshi-su57/call-operator/actions/workflows/ci.yml)
+
 Real-time AI meeting agent that joins video calls, listens to participants, and responds with generated voice. An automated conversational participant powered by STT, LLM, and TTS.
 
 ## How It Works
