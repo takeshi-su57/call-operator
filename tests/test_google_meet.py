@@ -247,3 +247,51 @@ class TestGoogleMeetAdapterDisconnect:
         # Should not raise
         await adapter.disconnect()
         assert adapter.is_connected() is False
+
+
+class TestGoogleMeetAdapterReconnect:
+    async def test_reconnect_succeeds(self) -> None:
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._url = "https://meet.google.com/test"
+        adapter._connected = False
+
+        with (
+            patch.object(adapter, "disconnect", new_callable=AsyncMock),
+            patch.object(adapter, "connect", new_callable=AsyncMock),
+            patch(
+                "call_operator.adapters.google_meet.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await adapter._reconnect()
+
+        assert result is True
+
+    async def test_reconnect_fails_after_max_attempts(self) -> None:
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._url = "https://meet.google.com/test"
+        adapter._connected = False
+
+        with (
+            patch.object(adapter, "disconnect", new_callable=AsyncMock),
+            patch.object(
+                adapter, "connect", new_callable=AsyncMock, side_effect=RuntimeError("fail")
+            ),
+            patch(
+                "call_operator.adapters.google_meet.asyncio.sleep",
+                new_callable=AsyncMock,
+            ),
+        ):
+            result = await adapter._reconnect()
+
+        assert result is False
+
+    async def test_reconnect_returns_false_without_url(self) -> None:
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._url = None
+
+        result = await adapter._reconnect()
+        assert result is False
