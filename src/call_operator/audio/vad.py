@@ -21,7 +21,7 @@ _STATS_LOG_INTERVAL = 100  # Log stats every N chunks
 
 # Silero VAD requires exactly this many samples per chunk
 _SILERO_SAMPLES_16K = 512  # 32ms at 16kHz
-_SILERO_SAMPLES_8K = 256   # 32ms at 8kHz
+_SILERO_SAMPLES_8K = 256  # 32ms at 8kHz
 
 
 class VoiceActivityDetector:
