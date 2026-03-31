@@ -2,12 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
-    import asyncio
-
     from call_operator.adapters.base import AudioChunk, MeetingAdapter
 
 logger = logging.getLogger(__name__)
@@ -41,6 +40,9 @@ async def playback_stage(
                     len(chunk.data),
                     chunk.duration_ms,
                 )
+                # Pace playback to match audio duration (prevent sending faster than real-time)
+                if chunk.duration_ms > 0:
+                    await asyncio.sleep(chunk.duration_ms / 1000.0)
             except Exception:  # noqa: BLE001
                 logger.exception("playback_stage: failed to play chunk, skipping")
     finally:

@@ -104,6 +104,32 @@ _AUDIO_READ_JS = """() => {
     return Array.from(merged);
 }"""
 
+_AUDIO_PLAY_JS = """(samples) => {
+    const ctx = window.__audioCtx;
+    if (!ctx) return 0;
+
+    const float32 = new Float32Array(samples.length);
+    for (let i = 0; i < samples.length; i++) {
+        float32[i] = samples[i] / 32768;
+    }
+
+    const buffer = ctx.createBuffer(1, float32.length, ctx.sampleRate);
+    buffer.getChannelData(0).set(float32);
+
+    const source = ctx.createBufferSource();
+    source.buffer = buffer;
+    source.connect(ctx.destination);
+
+    // Schedule gapless playback after previous buffer ends.
+    if (!window.__playEndTime || window.__playEndTime < ctx.currentTime) {
+        window.__playEndTime = ctx.currentTime;
+    }
+    source.start(window.__playEndTime);
+    window.__playEndTime += buffer.duration;
+
+    return buffer.duration * 1000;
+}"""
+
 
 class GoogleMeetAdapter(MeetingAdapter):
     """Playwright-based Google Meet adapter.
@@ -230,8 +256,27 @@ class GoogleMeetAdapter(MeetingAdapter):
         return None
 
     async def play_audio(self, audio: AudioChunk) -> None:
-        """Play audio into the meeting (stub — full implementation in issue 012)."""
-        logger.debug("play_audio called (%d bytes) — not yet implemented", len(audio.data))
+        """Inject PCM audio into the meeting via Web Audio API.
+
+        Converts the PCM Int16 bytes to a sample list and passes it to
+        the browser-side ``AudioBufferSourceNode`` for gapless playback.
+        """
+        if not self._connected or self._page is None:
+            return
+
+        # Convert PCM Int16 bytes to list of ints for JS
+        num_samples = len(audio.data) // 2
+        samples = list(struct.unpack(f"<{num_samples}h", audio.data))
+
+        try:
+            duration_ms: float = await self._page.evaluate(_AUDIO_PLAY_JS, samples)
+            logger.debug(
+                "Played audio: %d samples, %.0fms",
+                num_samples,
+                duration_ms,
+            )
+        except Exception:  # noqa: BLE001
+            logger.warning("Error playing audio into meeting", exc_info=True)
 
     # ------------------------------------------------------------------
     # Pre-join UI handling
