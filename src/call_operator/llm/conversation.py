@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import random
 import time
 from typing import TYPE_CHECKING
 
@@ -21,6 +22,8 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+_FALLBACK_RESPONSE = "I'm having trouble responding right now."
+
 
 class ConversationEngine:
     """Stateful conversation engine that manages history and generates responses."""
@@ -30,6 +33,9 @@ class ConversationEngine:
         self._model_name: str = settings.llm_model
         self._max_history: int = settings.llm_max_history_messages
         self._max_context_tokens: int = settings.llm_max_context_tokens
+        self._max_retries: int = settings.retry_max_attempts
+        self._retry_base_delay: float = settings.retry_base_delay
+        self._retry_max_delay: float = settings.retry_max_delay
         system_content = SYSTEM_PROMPT.format(
             bot_name=settings.bot_name,
             context="",
@@ -64,7 +70,32 @@ class ConversationEngine:
         logger.debug("LLM call: history=%d messages, input=%s", len(self._history), text[:80])
 
         start = time.perf_counter()
-        response = await self._llm.ainvoke(self._history)
+        response = None
+        last_exc: Exception | None = None
+
+        for attempt in range(self._max_retries):
+            try:
+                response = await self._llm.ainvoke(self._history)
+                break
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < self._max_retries - 1:
+                    delay = min(self._retry_base_delay * (2**attempt), self._retry_max_delay)
+                    delay *= random.uniform(0.5, 1.5)  # noqa: S311
+                    logger.warning(
+                        "LLM call failed (attempt %d/%d), retrying in %.1fs: %s",
+                        attempt + 1,
+                        self._max_retries,
+                        delay,
+                        exc,
+                    )
+                    await asyncio.sleep(delay)
+
+        if response is None:
+            logger.error("LLM call failed after %d attempts: %s", self._max_retries, last_exc)
+            self._history.append(AIMessage(content=_FALLBACK_RESPONSE))
+            return _FALLBACK_RESPONSE
+
         latency_ms = (time.perf_counter() - start) * 1000
 
         usage = getattr(response, "usage_metadata", None)
@@ -105,36 +136,41 @@ class ConversationEngine:
 
     async def _maybe_summarize(self) -> None:
         """If history exceeds token limit, summarize older messages."""
-        if self._estimate_tokens() <= self._max_context_tokens:
-            return
+        try:
+            if self._estimate_tokens() <= self._max_context_tokens:
+                return
 
-        non_system = self._history[1:]
-        if len(non_system) <= 4:
-            return
+            non_system = self._history[1:]
+            if len(non_system) <= 4:
+                return
 
-        split = len(non_system) // 2
-        older = non_system[:split]
-        newer = non_system[split:]
+            split = len(non_system) // 2
+            older = non_system[:split]
+            newer = non_system[split:]
 
-        lines: list[str] = []
-        for msg in older:
-            role = "Assistant" if isinstance(msg, AIMessage) else "Participant"
-            lines.append(f"{role}: {msg.content}")
-        conversation_text = "\n".join(lines)
+            lines: list[str] = []
+            for msg in older:
+                role = "Assistant" if isinstance(msg, AIMessage) else "Participant"
+                lines.append(f"{role}: {msg.content}")
+            conversation_text = "\n".join(lines)
 
-        logger.debug("Summarizing %d older messages (%d chars)", len(older), len(conversation_text))
+            logger.debug(
+                "Summarizing %d older messages (%d chars)", len(older), len(conversation_text)
+            )
 
-        prompt = SUMMARIZE_PROMPT.format(conversation_history=conversation_text)
+            prompt = SUMMARIZE_PROMPT.format(conversation_history=conversation_text)
 
-        start = time.perf_counter()
-        summary_response = await self._llm.ainvoke([HumanMessage(content=prompt)])
-        latency_ms = (time.perf_counter() - start) * 1000
-        logger.info("Summarization: %.0fms, model=%s", latency_ms, self._model_name)
+            start = time.perf_counter()
+            summary_response = await self._llm.ainvoke([HumanMessage(content=prompt)])
+            latency_ms = (time.perf_counter() - start) * 1000
+            logger.info("Summarization: %.0fms, model=%s", latency_ms, self._model_name)
 
-        summary_text = str(summary_response.content)
-        summary_msg = SystemMessage(content=f"Summary of earlier conversation:\n{summary_text}")
+            summary_text = str(summary_response.content)
+            summary_msg = SystemMessage(content=f"Summary of earlier conversation:\n{summary_text}")
 
-        self._history = [self._system_message, summary_msg, *newer]
+            self._history = [self._system_message, summary_msg, *newer]
+        except Exception:  # noqa: BLE001
+            logger.warning("Summarization failed, skipping", exc_info=True)
 
 
 async def conversation_stage(

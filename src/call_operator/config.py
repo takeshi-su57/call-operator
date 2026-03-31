@@ -56,6 +56,14 @@ class Settings(BaseSettings):
     # Bot
     bot_name: str = "AI Assistant"
 
+    # Resilience
+    retry_max_attempts: int = 3
+    retry_base_delay: float = 1.0
+    retry_max_delay: float = 30.0
+    circuit_breaker_threshold: int = 5
+    circuit_breaker_cooldown: float = 60.0
+    adapter_max_reconnect_attempts: int = 3
+
     @model_validator(mode="after")
     def _check_llm_api_key(self) -> Settings:
         provider_key_map: dict[str, str] = {

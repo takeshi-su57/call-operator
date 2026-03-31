@@ -135,7 +135,24 @@ class Pipeline:
             results: list[Any] = await asyncio.gather(*self._tasks, return_exceptions=True)
             for task, result in zip(self._tasks, results, strict=True):
                 if isinstance(result, BaseException):
-                    logger.error("Stage %s failed: %s", task.get_name(), result)
+                    from call_operator.exceptions import AdapterError, CallOperatorError
+
+                    if isinstance(result, AdapterError):
+                        logger.error(
+                            "Stage %s: adapter error — %s: %s",
+                            task.get_name(),
+                            type(result).__name__,
+                            result,
+                        )
+                    elif isinstance(result, CallOperatorError):
+                        logger.error(
+                            "Stage %s: %s — %s",
+                            task.get_name(),
+                            type(result).__name__,
+                            result,
+                        )
+                    else:
+                        logger.error("Stage %s failed: %s", task.get_name(), result)
         finally:
             await self.stop()
 

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -65,25 +66,7 @@ class ElevenLabsTTS(TTSProvider):
         logger.debug("ElevenLabsTTS input: %s", text[:80])
         start_t = time.perf_counter()
 
-        from elevenlabs import VoiceSettings
-
-        response = self._client.text_to_speech.convert(
-            voice_id=self.voice,
-            text=text,
-            model_id=self.model_id,
-            voice_settings=VoiceSettings(
-                stability=self.stability,
-                similarity_boost=self.similarity_boost,
-                style=self.style,
-            ),
-            output_format="pcm_16000",
-        )
-
-        # Response is an async iterator of bytes chunks.
-        audio_parts: list[bytes] = []
-        async for chunk in response:
-            audio_parts.append(chunk)
-        pcm_data = b"".join(audio_parts)
+        pcm_data = await self._call_api_with_retry(text)
 
         latency_ms = (time.perf_counter() - start_t) * 1000
         duration_ms = len(pcm_data) / (2 * _TARGET_SAMPLE_RATE) * 1000
@@ -101,3 +84,36 @@ class ElevenLabsTTS(TTSProvider):
             timestamp=time.time(),
             duration_ms=duration_ms,
         )
+
+    async def _call_api_with_retry(self, text: str, max_retries: int = 3) -> bytes:
+        """Call ElevenLabs API with retry on transient failures."""
+        from elevenlabs import VoiceSettings
+
+        last_exc: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                response = self._client.text_to_speech.convert(
+                    voice_id=self.voice,
+                    text=text,
+                    model_id=self.model_id,
+                    voice_settings=VoiceSettings(
+                        stability=self.stability,
+                        similarity_boost=self.similarity_boost,
+                        style=self.style,
+                    ),
+                    output_format="pcm_16000",
+                )
+                audio_parts: list[bytes] = []
+                async for chunk in response:
+                    audio_parts.append(chunk)
+                return b"".join(audio_parts)
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < max_retries - 1:
+                    delay = min(1.0 * (2**attempt), 30.0)
+                    logger.warning("ElevenLabs TTS retry %d/%d: %s", attempt + 1, max_retries, exc)
+                    await asyncio.sleep(delay)
+        from call_operator.exceptions import TTSError
+
+        msg = f"ElevenLabs TTS failed after {max_retries} attempts"
+        raise TTSError(msg) from last_exc

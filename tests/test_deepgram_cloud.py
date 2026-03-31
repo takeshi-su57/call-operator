@@ -447,4 +447,8 @@ class TestDeepgramSTTReconnect:
         ):
             await stt._reconnect()
 
-        assert delays == [0.5, 1.0, 2.0]
+        # Delays use jitter (0.5-1.5x multiplier), so check ranges
+        assert len(delays) == 3
+        assert 0.25 <= delays[0] <= 0.75  # base 0.5 * jitter
+        assert 0.5 <= delays[1] <= 1.5  # base 1.0 * jitter
+        assert 1.0 <= delays[2] <= 3.0  # base 2.0 * jitter

@@ -250,9 +250,12 @@ class DeepgramSTT(STTProvider):
             self._is_connected = False
 
     async def _reconnect(self) -> None:
-        """Attempt to reconnect with exponential backoff."""
+        """Attempt to reconnect with exponential backoff and jitter."""
+        import random
+
         for attempt in range(_MAX_RECONNECT_ATTEMPTS):
             delay = min(2**attempt * 0.5, 5.0)
+            delay *= random.uniform(0.5, 1.5)  # noqa: S311
             logger.warning(
                 "Deepgram reconnecting (attempt %d/%d, delay=%.1fs)",
                 attempt + 1,
