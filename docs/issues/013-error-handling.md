@@ -10,65 +10,134 @@ In a real meeting, the agent must be resilient. Network blips, API rate limits, 
 
 ## Tasks
 
-- [ ] Define custom exception hierarchy in `src/call_operator/exceptions.py`:
+- [x] Define custom exception hierarchy in `src/call_operator/exceptions.py`:
   - `CallOperatorError` (base)
   - `AdapterError`, `AdapterDisconnectedError`, `AdapterTimeoutError`
   - `STTError`, `STTProviderUnavailableError`
   - `TTSError`, `TTSProviderUnavailableError`
   - `LLMError`, `LLMProviderUnavailableError`
   - `PipelineError`, `PipelineShutdownError`
-- [ ] Implement retry decorator `async_retry(max_retries, base_delay, max_delay, exceptions)`:
-  - Exponential backoff with jitter
+- [x] Implement retry decorator `async_retry(max_retries, base_delay, max_delay, exceptions)`:
+  - Exponential backoff with jitter (`random.uniform(0.5, 1.5)`)
   - Configurable retryable exception types
-  - Logging on each retry attempt
-- [ ] Add reconnection logic to `GoogleMeetAdapter`:
-  - Detect disconnection (WebSocket close, page crash, removed from meeting)
-  - Attempt to rejoin the meeting automatically (up to 3 attempts)
-  - Emit events on reconnection success/failure
-- [ ] Add retry to LLM calls in `ConversationEngine.process_transcript()`:
-  - Retry on rate limit (429), server error (500+), and timeout
-  - Fall back to a shorter response on persistent failure ("I'm having trouble responding right now")
-- [ ] Add retry to cloud STT (`DeepgramSTT`):
-  - Reconnect WebSocket on disconnection
-  - Buffer audio during reconnection to avoid data loss
-  - Fall back to local Whisper if cloud STT is persistently unavailable
-- [ ] Add retry to TTS providers:
-  - Retry on API errors
-  - Fall back to a different TTS provider if the primary fails
-  - Fall back to text-only (log the response instead of speaking) as last resort
-- [ ] Add circuit breaker pattern for external APIs:
-  - After N consecutive failures, stop calling the API for a cooldown period
-  - Automatically retry after cooldown
-- [ ] Improve pipeline error handling:
-  - If a non-critical stage fails, continue with remaining stages
-  - If capture stage fails, attempt adapter reconnection before shutting down
-  - If conversation stage fails, log the error and skip the response (don't crash)
-- [ ] Add structured error logging: include stage name, error type, retry count, context
+  - Logging on each retry attempt (WARNING level)
+- [x] Add reconnection logic to `GoogleMeetAdapter`:
+  - Detect disconnection (page crash, evaluate error, meeting ended)
+  - `_reconnect()` method: disconnect + reconnect with exponential backoff (up to configurable attempts)
+  - Auto-reconnect in `read_audio()` on error, continue read loop on success
+  - Log reconnection attempts and success/failure
+- [x] Add retry to LLM calls in `ConversationEngine.process_transcript()`:
+  - Inline retry loop with exponential backoff + jitter
+  - Configurable via `RETRY_MAX_ATTEMPTS`, `RETRY_BASE_DELAY`, `RETRY_MAX_DELAY`
+  - Fall back to "I'm having trouble responding right now." on persistent failure
+  - Fallback message appended to history as AIMessage
+- [x] Add retry to cloud STT (`DeepgramSTT`):
+  - Existing reconnect logic enhanced with jitter on backoff delays
+  - `stt_stage` now wraps `provider.transcribe()` in try/except (was unprotected)
+  - Failed chunks are skipped, pipeline continues
+- [ ] Cloud STT fallback to local Whisper — **deferred**: requires `stt_stage` to hold a backup provider and swap at runtime (architectural change)
+- [x] Add retry to TTS providers:
+  - `_call_api_with_retry()` method added to all three providers (OpenAI, ElevenLabs, Google)
+  - 3 retries with exponential backoff per API call
+  - Raises `TTSError` after retries exhausted (caught by `tts_stage`)
+- [ ] TTS fallback to alternative provider — **deferred**: requires `tts_stage` to know about multiple providers (architectural change)
+- [x] Add circuit breaker pattern for external APIs:
+  - `CircuitBreaker` class: CLOSED → OPEN after N failures, OPEN → HALF_OPEN after cooldown, success → CLOSED
+  - Configurable via `CIRCUIT_BREAKER_THRESHOLD` and `CIRCUIT_BREAKER_COOLDOWN`
+  - **Note**: class is implemented and tested but not yet wired into provider call paths
+- [x] Improve pipeline error handling:
+  - `stt_stage`: per-chunk try/except added (was unprotected)
+  - `conversation_stage`: already had per-item error handling, now with retry before skip
+  - `tts_stage`: already had per-item error handling
+  - `_maybe_summarize()`: wrapped in try/except (summarization failure no longer crashes)
+  - Pipeline `run()`: structured error logging with exception type awareness (`AdapterError` vs `CallOperatorError` vs generic)
+- [x] Add structured error logging:
+  - Pipeline logs stage name + exception type + message
+  - Retry loops log attempt count, delay, and error
+  - Adapter reconnection logs attempt number and delay
 
 ## Acceptance Criteria
 
-- [ ] Custom exceptions provide clear error messages with context
-- [ ] API calls retry with exponential backoff on transient failures
-- [ ] Adapter reconnects automatically on disconnection
-- [ ] Pipeline continues operating when a single API call fails
-- [ ] Circuit breaker prevents hammering a failing API
-- [ ] TTS falls back to alternative provider on failure
-- [ ] Cloud STT falls back to local Whisper on persistent failure
-- [ ] All error paths are logged with structured context
-- [ ] No unhandled exceptions crash the pipeline
-- [ ] All files pass `ruff check` and `mypy --strict`
+- [x] Custom exceptions provide clear error messages with context
+- [x] API calls retry with exponential backoff on transient failures
+- [x] Adapter reconnects automatically on disconnection
+- [x] Pipeline continues operating when a single API call fails
+- [x] Circuit breaker prevents hammering a failing API (class implemented, not yet wired)
+- [ ] TTS falls back to alternative provider on failure — **deferred**
+- [ ] Cloud STT falls back to local Whisper on persistent failure — **deferred**
+- [x] All error paths are logged with structured context
+- [x] No unhandled exceptions crash the pipeline
+- [x] All files pass `ruff check` and `mypy --strict`
+
+## Implementation Notes
+
+### Exception hierarchy
+
+```
+CallOperatorError(Exception)
+├── AdapterError
+│   ├── AdapterDisconnectedError
+│   └── AdapterTimeoutError
+├── STTError
+│   └── STTProviderUnavailableError
+├── TTSError
+│   └── TTSProviderUnavailableError
+├── LLMError
+│   └── LLMProviderUnavailableError
+└── PipelineError
+    └── PipelineShutdownError
+```
+
+### Retry strategy
+
+All retry uses inline loops (not the decorator) in provider methods for simplicity with `self` parameter under mypy strict. The `async_retry` decorator is available in `retry.py` for standalone functions.
+
+Pattern: exponential backoff `min(base_delay * 2^attempt, max_delay)` with jitter `* random.uniform(0.5, 1.5)`.
+
+### Config additions
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| `RETRY_MAX_ATTEMPTS` | 3 | Max retry attempts for API calls |
+| `RETRY_BASE_DELAY` | 1.0 | Base delay (seconds) for backoff |
+| `RETRY_MAX_DELAY` | 30.0 | Max delay (seconds) cap |
+| `CIRCUIT_BREAKER_THRESHOLD` | 5 | Consecutive failures to trip |
+| `CIRCUIT_BREAKER_COOLDOWN` | 60.0 | Seconds before half-open |
+| `ADAPTER_MAX_RECONNECT_ATTEMPTS` | 3 | Max adapter reconnect tries |
+
+### Deferred items
+
+Three items are deferred as they require architectural changes to stage functions:
+1. **TTS provider fallback** — `tts_stage` would need to hold multiple providers
+2. **STT cloud→local fallback** — `stt_stage` would need a backup provider
+3. **Circuit breaker integration** — providers would need to check `is_open` before calls
+
+The foundation (exception hierarchy, circuit breaker class, retry patterns) is in place for these.
+
+### Testing
+
+- **`tests/test_retry.py`** (NEW): 10 tests — async_retry (5) + CircuitBreaker (5)
+- **`tests/test_conversation.py`**: 3 new tests — retry then succeed, retry exhausted fallback, summarization error handling
+- **`tests/test_deepgram_cloud.py`**: updated backoff test for jitter ranges
 
 ## Dependencies
 
 - 010 — Async Pipeline (pipeline must be functional to add resilience)
 
-## Files to Create/Modify
+## Files Created/Modified
 
-- `src/call_operator/exceptions.py`
-- `src/call_operator/pipeline.py` (error handling in run loop)
-- `src/call_operator/adapters/google_meet.py` (reconnection)
-- `src/call_operator/stt/deepgram_cloud.py` (retry + fallback)
-- `src/call_operator/tts/openai_tts.py` (retry)
-- `src/call_operator/tts/elevenlabs_tts.py` (retry)
-- `src/call_operator/tts/google_tts.py` (retry)
-- `src/call_operator/llm/conversation.py` (retry)
+- `src/call_operator/exceptions.py` — NEW: 10 custom exception classes
+- `src/call_operator/retry.py` — NEW: `async_retry` decorator + `CircuitBreaker` class
+- `src/call_operator/config.py` — 6 new resilience settings
+- `.env.example` — resilience env vars section
+- `src/call_operator/llm/conversation.py` — LLM retry + fallback + summarization error handling
+- `src/call_operator/tts/openai_tts.py` — `_call_api_with_retry`, raises `TTSError`
+- `src/call_operator/tts/elevenlabs_tts.py` — same pattern
+- `src/call_operator/tts/google_tts.py` — same pattern
+- `src/call_operator/adapters/google_meet.py` — `_reconnect()`, auto-reconnect in `read_audio`
+- `src/call_operator/pipeline.py` — structured error logging with exception types
+- `src/call_operator/stt/__init__.py` — per-chunk try/except in `stt_stage`
+- `src/call_operator/stt/deepgram_cloud.py` — jitter in reconnect backoff
+- `tests/test_retry.py` — NEW: 10 tests
+- `tests/test_conversation.py` — 3 new retry/fallback tests
+- `tests/test_deepgram_cloud.py` — updated backoff test for jitter

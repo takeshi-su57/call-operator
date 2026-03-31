@@ -137,6 +137,78 @@ class TestConversationEngine:
         )
         assert summary_found
 
+    async def test_llm_retry_then_succeed(self, mock_llm: AsyncMock) -> None:
+        mock_llm.ainvoke.side_effect = [
+            RuntimeError("transient"),
+            MagicMock(content="Recovered response"),
+        ]
+
+        with (
+            patch.dict(
+                "os.environ",
+                {"LLM_PROVIDER": "openai", "OPENAI_API_KEY": "test-key"},
+            ),
+            patch("call_operator.llm.conversation.get_llm", return_value=mock_llm),
+            patch("call_operator.llm.conversation.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            from call_operator.config import Settings
+
+            eng = ConversationEngine(Settings())
+
+        result = await eng.process_transcript("Hello")
+        assert result == "Recovered response"
+        assert mock_llm.ainvoke.call_count == 2
+
+    async def test_llm_retry_exhausted_returns_fallback(self, mock_llm: AsyncMock) -> None:
+        mock_llm.ainvoke.side_effect = RuntimeError("permanent failure")
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "LLM_PROVIDER": "openai",
+                    "OPENAI_API_KEY": "test-key",
+                    "RETRY_MAX_ATTEMPTS": "2",
+                },
+            ),
+            patch("call_operator.llm.conversation.get_llm", return_value=mock_llm),
+            patch("call_operator.llm.conversation.asyncio.sleep", new_callable=AsyncMock),
+        ):
+            from call_operator.config import Settings
+
+            eng = ConversationEngine(Settings())
+
+        result = await eng.process_transcript("Hello")
+        assert "trouble responding" in result
+        assert mock_llm.ainvoke.call_count == 2
+
+    async def test_summarization_failure_handled(self, mock_llm: AsyncMock) -> None:
+        """Summarization LLM failure should not crash process_transcript."""
+        # First call: normal response. Second call (summarization): fails.
+        mock_llm.ainvoke.side_effect = [
+            MagicMock(content="Response"),
+            RuntimeError("summarization failed"),
+        ]
+
+        with (
+            patch.dict(
+                "os.environ",
+                {
+                    "LLM_PROVIDER": "openai",
+                    "OPENAI_API_KEY": "test-key",
+                    "LLM_MAX_CONTEXT_TOKENS": "10",
+                },
+            ),
+            patch("call_operator.llm.conversation.get_llm", return_value=mock_llm),
+        ):
+            from call_operator.config import Settings
+
+            eng = ConversationEngine(Settings())
+
+        # Should not raise despite summarization failure
+        result = await eng.process_transcript("A" * 200)
+        assert result == "Response"
+
 
 # ------------------------------------------------------------------
 # conversation_stage tests
@@ -163,7 +235,11 @@ class TestConversationStage:
 
     async def test_stage_continues_on_error(self, mock_settings: MagicMock) -> None:
         mock_llm = AsyncMock()
+        # With retry_max_attempts=3 (default), first transcript retries 3 times
+        # then returns fallback. Second transcript succeeds.
         mock_llm.ainvoke.side_effect = [
+            RuntimeError("LLM error"),
+            RuntimeError("LLM error"),
             RuntimeError("LLM error"),
             MagicMock(content="OK"),
         ]
@@ -175,9 +251,16 @@ class TestConversationStage:
         in_queue.put_nowait(Transcript(text="Second", speaker="user1"))
         in_queue.put_nowait(None)
 
-        with patch("call_operator.llm.conversation.get_llm", return_value=mock_llm):
+        with (
+            patch("call_operator.llm.conversation.get_llm", return_value=mock_llm),
+            patch("call_operator.llm.conversation.asyncio.sleep", new_callable=AsyncMock),
+        ):
             await conversation_stage(in_queue, out_queue, mock_settings)
 
+        # First transcript: fallback after 3 retries
+        fallback = out_queue.get_nowait()
+        assert "trouble responding" in fallback
+        # Second transcript: succeeds
         result = out_queue.get_nowait()
         assert result == "OK"
         assert out_queue.get_nowait() is None

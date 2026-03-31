@@ -44,7 +44,11 @@ async def stt_stage(
                 break
 
             chunks_processed += 1
-            transcript = await provider.transcribe(chunk)
+            try:
+                transcript = await provider.transcribe(chunk)
+            except Exception:  # noqa: BLE001
+                logger.exception("stt_stage: transcription failed, skipping chunk")
+                continue
             if transcript is not None:
                 transcripts_produced += 1
                 await out_queue.put(transcript)

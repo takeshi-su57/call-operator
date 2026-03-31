@@ -148,6 +148,8 @@ class GoogleMeetAdapter(MeetingAdapter):
         self._context: Any = None
         self._page: Any = None
         self._connected = False
+        self._url: str | None = None
+        self._max_reconnect_attempts: int = settings.adapter_max_reconnect_attempts
 
     # ------------------------------------------------------------------
     # Lifecycle
@@ -155,6 +157,8 @@ class GoogleMeetAdapter(MeetingAdapter):
 
     async def connect(self, url: str) -> None:
         """Join a Google Meet session via Playwright."""
+        self._url = url
+
         from playwright.async_api import async_playwright
 
         logger.info("Launching browser (headless=%s)", self.settings.browser_headless)
@@ -246,6 +250,8 @@ class GoogleMeetAdapter(MeetingAdapter):
             except Exception:  # noqa: BLE001
                 logger.warning("Error reading audio from browser", exc_info=True)
                 self._connected = False
+                if await self._reconnect():
+                    continue
                 return None
 
             if result and len(result) > 0:
@@ -322,6 +328,35 @@ class GoogleMeetAdapter(MeetingAdapter):
     # ------------------------------------------------------------------
     # Meeting state detection
     # ------------------------------------------------------------------
+
+    async def _reconnect(self) -> bool:
+        """Attempt to reconnect to the meeting. Returns True on success."""
+        if self._url is None:
+            return False
+
+        for attempt in range(self._max_reconnect_attempts):
+            delay = min(1.0 * (2**attempt), 10.0)
+            logger.warning(
+                "Adapter reconnecting (attempt %d/%d, delay=%.1fs)",
+                attempt + 1,
+                self._max_reconnect_attempts,
+                delay,
+            )
+            await asyncio.sleep(delay)
+
+            try:
+                await self.disconnect()
+                await self.connect(self._url)
+                logger.info("Adapter reconnected successfully")
+                return True
+            except Exception:  # noqa: BLE001
+                logger.warning("Reconnect attempt %d failed", attempt + 1, exc_info=True)
+
+        logger.error(
+            "Adapter reconnection failed after %d attempts",
+            self._max_reconnect_attempts,
+        )
+        return False
 
     async def _check_meeting_ended(self) -> bool:
         """Check if the meeting has ended or user was removed."""

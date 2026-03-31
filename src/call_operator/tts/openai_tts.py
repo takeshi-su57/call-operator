@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -70,14 +71,7 @@ class OpenAITTS(TTSProvider):
         logger.debug("OpenAITTS input: %s", text[:80])
         start_t = time.perf_counter()
 
-        response = await self._client.audio.speech.create(
-            model=self.model,
-            voice=self.voice,
-            input=text,
-            response_format="pcm",
-            speed=self.speed,
-        )
-        audio_data = response.read()
+        audio_data = await self._call_api_with_retry(text)
 
         pcm_16k = _downsample_24k_to_16k(audio_data)
         latency_ms = (time.perf_counter() - start_t) * 1000
@@ -96,6 +90,30 @@ class OpenAITTS(TTSProvider):
             timestamp=time.time(),
             duration_ms=duration_ms,
         )
+
+    async def _call_api_with_retry(self, text: str, max_retries: int = 3) -> bytes:
+        """Call OpenAI TTS API with retry on transient failures."""
+        last_exc: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                response = await self._client.audio.speech.create(
+                    model=self.model,
+                    voice=self.voice,
+                    input=text,
+                    response_format="pcm",
+                    speed=self.speed,
+                )
+                return response.read()  # type: ignore[no-any-return]
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < max_retries - 1:
+                    delay = min(1.0 * (2**attempt), 30.0)
+                    logger.warning("OpenAI TTS retry %d/%d: %s", attempt + 1, max_retries, exc)
+                    await asyncio.sleep(delay)
+        from call_operator.exceptions import TTSError
+
+        msg = f"OpenAI TTS failed after {max_retries} attempts"
+        raise TTSError(msg) from last_exc
 
 
 def _downsample_24k_to_16k(pcm_24k: bytes) -> bytes:

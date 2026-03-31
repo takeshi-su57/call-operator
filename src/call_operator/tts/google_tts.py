@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import time
 from typing import Any
@@ -83,15 +84,7 @@ class GoogleTTS(TTSProvider):
             sample_rate_hertz=_TARGET_SAMPLE_RATE,
         )
 
-        response = await self._client.synthesize_speech(
-            input=synthesis_input,
-            voice=voice_params,
-            audio_config=audio_config,
-        )
-
-        # LINEAR16 responses include a 44-byte WAV header; strip it.
-        raw_audio: bytes = response.audio_content
-        pcm_data = raw_audio[_WAV_HEADER_SIZE:] if len(raw_audio) > _WAV_HEADER_SIZE else raw_audio
+        pcm_data = await self._call_api_with_retry(synthesis_input, voice_params, audio_config)
 
         latency_ms = (time.perf_counter() - start_t) * 1000
         duration_ms = len(pcm_data) / (2 * _TARGET_SAMPLE_RATE) * 1000
@@ -109,3 +102,30 @@ class GoogleTTS(TTSProvider):
             timestamp=time.time(),
             duration_ms=duration_ms,
         )
+
+    async def _call_api_with_retry(
+        self, synthesis_input: Any, voice_params: Any, audio_config: Any, max_retries: int = 3
+    ) -> bytes:
+        """Call Google Cloud TTS API with retry on transient failures."""
+        last_exc: Exception | None = None
+        for attempt in range(max_retries):
+            try:
+                response = await self._client.synthesize_speech(
+                    input=synthesis_input,
+                    voice=voice_params,
+                    audio_config=audio_config,
+                )
+                raw_audio: bytes = response.audio_content
+                if len(raw_audio) > _WAV_HEADER_SIZE:
+                    return raw_audio[_WAV_HEADER_SIZE:]
+                return raw_audio
+            except Exception as exc:  # noqa: BLE001
+                last_exc = exc
+                if attempt < max_retries - 1:
+                    delay = min(1.0 * (2**attempt), 30.0)
+                    logger.warning("Google TTS retry %d/%d: %s", attempt + 1, max_retries, exc)
+                    await asyncio.sleep(delay)
+        from call_operator.exceptions import TTSError
+
+        msg = f"Google TTS failed after {max_retries} attempts"
+        raise TTSError(msg) from last_exc
