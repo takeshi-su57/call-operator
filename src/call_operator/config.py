@@ -44,6 +44,9 @@ class Settings(BaseSettings):
     # Logging
     log_level: str = "INFO"
 
+    # Pipeline
+    pipeline_queue_size: int = 100
+
     # Audio
     audio_sample_rate: int = 16000
     vad_threshold: float = 0.5

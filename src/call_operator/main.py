@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import signal
 
 import typer
 from rich.console import Console
@@ -19,13 +20,34 @@ def join(
 ) -> None:
     """Join a meeting and start the AI agent."""
     from call_operator.config import get_settings
-    from call_operator.pipeline import run_pipeline
+    from call_operator.pipeline import Pipeline
 
     settings = get_settings()
     logging.basicConfig(level=getattr(logging, settings.log_level))
 
     console.print(f"[bold green]Joining meeting:[/] {url}")
-    asyncio.run(run_pipeline(url=url, settings=settings))
+
+    pipeline = Pipeline(settings)
+
+    async def _run() -> None:
+        # Register signal handlers for graceful shutdown (Unix only)
+        import sys
+
+        if sys.platform != "win32":
+            loop = asyncio.get_running_loop()
+            for sig in (signal.SIGINT, signal.SIGTERM):
+                loop.add_signal_handler(sig, lambda: asyncio.create_task(pipeline.stop()))
+
+        await pipeline.start(url)
+        try:
+            await pipeline.run()
+        finally:
+            await pipeline.stop()
+
+    try:
+        asyncio.run(_run())
+    except KeyboardInterrupt:
+        console.print("[yellow]Interrupted — shutting down[/]")
 
 
 if __name__ == "__main__":
