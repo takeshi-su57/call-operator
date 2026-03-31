@@ -14,15 +14,34 @@ logger = logging.getLogger(__name__)
 
 
 async def playback_stage(
-    in_queue: asyncio.Queue[AudioChunk],
+    in_queue: asyncio.Queue[AudioChunk | None],
     adapter: MeetingAdapter,
 ) -> None:
     """Pipeline stage: play audio chunks back into the meeting.
 
-    Reads synthesized speech audio from the queue and sends it
-    to the meeting adapter for playback.
+    Reads synthesized speech :class:`AudioChunk` objects from *in_queue*
+    and sends each to the meeting adapter for playback.  At end-of-stream
+    (``None`` sentinel) the stage exits.
     """
-    # TODO: Read AudioChunk from in_queue
-    # TODO: Send to adapter.play_audio()
-    # TODO: Handle timing/pacing of audio playback
-    logger.warning("playback_stage() is not yet implemented.")
+    logger.info("playback_stage started")
+    chunks_played = 0
+
+    try:
+        while True:
+            chunk = await in_queue.get()
+
+            if chunk is None:
+                break
+
+            try:
+                await adapter.play_audio(chunk)
+                chunks_played += 1
+                logger.debug(
+                    "Played chunk: %d bytes, %.1f ms",
+                    len(chunk.data),
+                    chunk.duration_ms,
+                )
+            except Exception:  # noqa: BLE001
+                logger.exception("playback_stage: failed to play chunk, skipping")
+    finally:
+        logger.info("playback_stage finished — %d chunks played", chunks_played)
