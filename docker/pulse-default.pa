@@ -1,0 +1,13 @@
+# PulseAudio configuration for headless container operation.
+# Creates virtual audio sink and source — no hardware required.
+
+# Load essential modules
+load-module module-null-sink sink_name=virtual_speaker sink_properties=device.description="Virtual_Speaker"
+load-module module-null-sink sink_name=virtual_mic sink_properties=device.description="Virtual_Microphone"
+
+# Make the virtual speaker the default output
+set-default-sink virtual_speaker
+
+# Create a virtual source from the mic sink's monitor
+load-module module-remap-source master=virtual_mic.monitor source_name=virtual_input source_properties=device.description="Virtual_Input"
+set-default-source virtual_input

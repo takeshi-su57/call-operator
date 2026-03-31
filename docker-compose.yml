@@ -2,10 +2,18 @@ services:
   agent:
     build: .
     env_file: .env
+    shm_size: "2gb"
+    restart: unless-stopped
     volumes:
       - ./data:/app/data
     environment:
       - BROWSER_HEADLESS=true
       - LOG_LEVEL=INFO
-    # Override entrypoint for interactive use:
-    # docker compose run --rm agent join --url "https://meet.google.com/xxx-yyyy-zzz"
+    # Usage:
+    #   docker compose run --rm agent join --url "https://meet.google.com/xxx-yyyy-zzz"
+    #
+    # Or start detached:
+    #   docker compose up -d
+    #
+    # View logs:
+    #   docker compose logs -f agent

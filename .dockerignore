@@ -1,0 +1,48 @@
+# Environment and secrets
+.env
+.env.*
+
+# Runtime data
+data/
+
+# Python caches
+__pycache__/
+*.pyc
+*.pyo
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Claude Code
+.claude/
+
+# Virtual environments
+.venv/
+venv/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Tests (not needed in production image)
+tests/
+
+# Documentation (not needed in production image)
+docs/
+*.md
+!README.md

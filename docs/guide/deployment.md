@@ -22,6 +22,7 @@ docker build -t call-operator .
 
 ```bash
 docker run --rm \
+    --shm-size=2g \
     --env-file .env \
     call-operator join --url "https://meet.google.com/xxx-yyyy-zzz"
 ```
@@ -29,12 +30,68 @@ docker run --rm \
 ### Docker Compose
 
 ```bash
-# Start the service
-docker compose up --build
-
-# Run with a specific meeting URL
+# Build and run with a specific meeting URL
 docker compose run --rm agent join --url "https://meet.google.com/xxx-yyyy-zzz"
+
+# Start detached
+docker compose up -d --build
+
+# View logs
+docker compose logs -f agent
+
+# Stop
+docker compose down
 ```
+
+### Verify the image
+
+```bash
+# Check CLI works
+docker run --rm call-operator --version
+
+# Check help
+docker run --rm call-operator --help
+
+# Check config
+docker run --rm --env-file .env call-operator status
+```
+
+## Docker Image Details
+
+### Base image
+
+`python:3.12-slim` with system dependencies added:
+- Chromium runtime libraries (NSS, ATK, GBM, etc.)
+- Audio libraries (ALSA, PulseAudio)
+- Fonts (Liberation, Noto Emoji)
+- Playwright + Chromium browser
+
+### Layer caching
+
+The Dockerfile is optimized for cache efficiency:
+1. System dependencies (rarely changes)
+2. `pyproject.toml` + `uv sync` (only rebuilds when deps change)
+3. Playwright install (only rebuilds when playwright version changes)
+4. Application source (rebuilds on every code change — fast)
+
+### Non-root user
+
+The container runs as `appuser` (UID 1000) for security. The `/app/data` directory is writable.
+
+### Health check
+
+Built-in Docker health check runs `call-operator --version` every 30 seconds:
+```
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3
+```
+
+### Virtual audio (PulseAudio)
+
+The container includes PulseAudio configured with virtual audio devices (`docker/pulse-default.pa`):
+- `virtual_speaker` — null sink for audio output
+- `virtual_mic` — null sink with monitor for audio input
+
+This allows Chromium to capture and play audio without real hardware.
 
 ## Environment Variables (Production)
 
@@ -47,13 +104,21 @@ For production use, ensure:
 - API keys set via environment variables, not `.env` file
 - Use secrets management (Docker secrets, Vault, AWS SSM, etc.) for API keys
 
+## .dockerignore
+
+The `.dockerignore` excludes:
+- `.env` files (secrets)
+- `data/`, `tests/`, `docs/` (not needed in image)
+- `__pycache__/`, `.mypy_cache/`, `.pytest_cache/`, `.ruff_cache/`
+- `.git/`, `.venv/`, IDE files
+
 ## Container Architecture
 
 The Docker image includes:
 - Python 3.12
 - Playwright + Chromium browser
-- System dependencies for audio processing
-- All Python dependencies
+- PulseAudio with virtual audio devices
+- All Python dependencies (including optional providers)
 
 The container runs as a single process that joins one meeting at a time.
 
@@ -63,17 +128,73 @@ The container runs as a single process that joins one meeting at a time.
 |----------|---------|-------------|
 | CPU | 2 cores | 4 cores |
 | RAM | 2 GB | 4 GB |
+| SHM | 2 GB | 2 GB |
 | Disk | 2 GB (image) | 5 GB (with audio recording) |
 | Network | Stable internet | Low-latency connection |
 
 **Note:** GPU is NOT required. faster-whisper runs on CPU. For lower latency, use Deepgram cloud STT instead.
 
-## Health Monitoring
+**Important:** Chromium requires at least 2 GB of shared memory (`--shm-size=2g`). Without this, Chromium will crash with "out of memory" errors. The `docker-compose.yml` sets this automatically.
 
-Currently no built-in health check endpoint. For production:
-- Monitor container exit codes
-- Monitor log output for error patterns
-- Consider adding a `/health` endpoint if wrapping with a web API
+## Troubleshooting
+
+### Chromium crashes with "out of memory"
+
+Increase shared memory size:
+```bash
+docker run --rm --shm-size=2g --env-file .env call-operator join --url "..."
+```
+
+Or in `docker-compose.yml`:
+```yaml
+shm_size: "2gb"
+```
+
+### No audio capture / silence only
+
+Verify PulseAudio is running inside the container:
+```bash
+docker exec -it <container> pulseaudio --check
+```
+
+If not running, start it:
+```bash
+docker exec -it <container> pulseaudio --start --daemonize
+```
+
+### Chromium fails to launch
+
+Check that system dependencies are installed:
+```bash
+docker exec -it <container> uv run playwright install-deps chromium
+```
+
+### Permission denied on /app/data
+
+The container runs as UID 1000. Ensure the host `data/` directory is writable:
+```bash
+chmod 777 data/
+# Or match the UID:
+chown 1000:1000 data/
+```
+
+### API timeouts
+
+Ensure the container has network access to:
+- `meet.google.com` (Google Meet)
+- `api.openai.com` (OpenAI LLM/TTS)
+- `api.deepgram.com` (Deepgram STT)
+- `api.elevenlabs.io` (ElevenLabs TTS)
+
+### Container logs
+
+```bash
+# Real-time logs
+docker compose logs -f agent
+
+# Session log file (persisted in data volume)
+cat data/session.log
+```
 
 ## Scaling
 
