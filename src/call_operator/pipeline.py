@@ -7,6 +7,8 @@ import contextlib
 import logging
 from typing import TYPE_CHECKING, Any
 
+from call_operator.monitoring import PipelineMonitor
+
 if TYPE_CHECKING:
     from call_operator.adapters.base import AudioChunk, MeetingAdapter
     from call_operator.config import Settings
@@ -16,6 +18,7 @@ if TYPE_CHECKING:
 logger = logging.getLogger(__name__)
 
 _SHUTDOWN_TIMEOUT_S = 5.0
+_MONITOR_INTERVAL_S = 0.5
 
 
 class Pipeline:
@@ -41,6 +44,7 @@ class Pipeline:
         self._adapter: MeetingAdapter | None = None
         self._stt: STTProvider | None = None
         self._tts: TTSProvider | None = None
+        self.monitor = PipelineMonitor()
 
     @property
     def is_running(self) -> bool:
@@ -118,7 +122,12 @@ class Pipeline:
                 name="stt",
             ),
             asyncio.create_task(
-                conversation_stage(self._transcript_q, self._response_q, self._settings),
+                conversation_stage(
+                    self._transcript_q,
+                    self._response_q,
+                    self._settings,
+                    monitor=self.monitor,
+                ),
                 name="conversation",
             ),
             asyncio.create_task(
@@ -131,12 +140,16 @@ class Pipeline:
             ),
         ]
 
+        # Background monitor task
+        monitor_task = asyncio.create_task(self._monitor_loop(), name="monitor")
+
         try:
             results: list[Any] = await asyncio.gather(*self._tasks, return_exceptions=True)
             for task, result in zip(self._tasks, results, strict=True):
                 if isinstance(result, BaseException):
                     from call_operator.exceptions import AdapterError, CallOperatorError
 
+                    self.monitor.record_error(task.get_name(), str(result))
                     if isinstance(result, AdapterError):
                         logger.error(
                             "Stage %s: adapter error — %s: %s",
@@ -154,6 +167,9 @@ class Pipeline:
                     else:
                         logger.error("Stage %s failed: %s", task.get_name(), result)
         finally:
+            monitor_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await monitor_task
             await self.stop()
 
     async def stop(self) -> None:
@@ -187,3 +203,28 @@ class Pipeline:
                 logger.exception("Error disconnecting adapter")
 
         logger.info("Pipeline stopped")
+
+    async def _monitor_loop(self) -> None:
+        """Background task that periodically samples queue depths and task states."""
+        try:
+            while self._running:
+                self.monitor.update_queue_depths(
+                    {
+                        "audio": self._audio_q.qsize(),
+                        "speech": self._speech_q.qsize(),
+                        "transcript": self._transcript_q.qsize(),
+                        "response": self._response_q.qsize(),
+                        "playback": self._playback_q.qsize(),
+                    }
+                )
+                for task in self._tasks:
+                    name = task.get_name()
+                    if task.done():
+                        exc = task.exception() if not task.cancelled() else None
+                        status = "error" if exc else "stopped"
+                    else:
+                        status = "running"
+                    self.monitor.set_stage_status(name, status)
+                await asyncio.sleep(_MONITOR_INTERVAL_S)
+        except asyncio.CancelledError:
+            return

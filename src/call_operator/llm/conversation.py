@@ -18,6 +18,7 @@ if TYPE_CHECKING:
     from langchain_core.messages import BaseMessage
 
     from call_operator.config import Settings
+    from call_operator.monitoring import PipelineMonitor
     from call_operator.stt.base import Transcript
 
 logger = logging.getLogger(__name__)
@@ -177,6 +178,8 @@ async def conversation_stage(
     in_queue: asyncio.Queue[Transcript | None],
     out_queue: asyncio.Queue[str | None],
     settings: Settings,
+    *,
+    monitor: PipelineMonitor | None = None,
 ) -> None:
     """Pipeline stage: process transcripts via LLM and generate responses.
 
@@ -224,13 +227,23 @@ async def conversation_stage(
 
             # Process the (possibly combined) transcript
             try:
+                if monitor is not None:
+                    monitor.record_transcription(combined)
+
                 logger.debug("Processing transcript: %s", combined[:80])
+                start_t = time.perf_counter()
                 response = await engine.process_transcript(combined)
+                latency_ms = (time.perf_counter() - start_t) * 1000
                 transcripts_processed += 1
                 await out_queue.put(response)
                 logger.debug("Generated response: %s", response[:80])
+
+                if monitor is not None:
+                    monitor.record_response(response, latency_ms)
             except Exception:  # noqa: BLE001
                 logger.exception("conversation_stage: LLM call failed, skipping")
+                if monitor is not None:
+                    monitor.record_error("conversation", "LLM call failed")
 
             if sentinel_received:
                 break
