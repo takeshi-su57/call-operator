@@ -156,6 +156,53 @@ class TestGoogleMeetAdapterReadAudio:
         assert adapter.is_connected() is False
 
 
+class TestGoogleMeetAdapterPlayAudio:
+    async def test_play_audio_calls_evaluate(self) -> None:
+        from call_operator.adapters.base import AudioChunk
+
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._connected = True
+
+        page = AsyncMock()
+        page.evaluate = AsyncMock(return_value=100.0)  # duration_ms
+        adapter._page = page
+
+        chunk = AudioChunk(data=struct.pack("<4h", 100, -200, 300, -400), sample_rate=16000)
+        await adapter.play_audio(chunk)
+
+        page.evaluate.assert_called_once()
+        call_args = page.evaluate.call_args
+        samples_arg = call_args[0][1]
+        assert samples_arg == [100, -200, 300, -400]
+
+    async def test_play_audio_skips_when_disconnected(self) -> None:
+        from call_operator.adapters.base import AudioChunk
+
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._connected = False
+
+        chunk = AudioChunk(data=b"\x00\x01" * 10, sample_rate=16000)
+        # Should not raise
+        await adapter.play_audio(chunk)
+
+    async def test_play_audio_handles_evaluate_error(self) -> None:
+        from call_operator.adapters.base import AudioChunk
+
+        settings = _make_settings()
+        adapter = GoogleMeetAdapter(settings)
+        adapter._connected = True
+
+        page = AsyncMock()
+        page.evaluate = AsyncMock(side_effect=RuntimeError("page crashed"))
+        adapter._page = page
+
+        chunk = AudioChunk(data=struct.pack("<2h", 100, -100), sample_rate=16000)
+        # Should not raise — error is caught and logged
+        await adapter.play_audio(chunk)
+
+
 class TestGoogleMeetAdapterDisconnect:
     async def test_closes_browser(self) -> None:
         settings = _make_settings()
