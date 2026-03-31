@@ -2,11 +2,11 @@
 
 from __future__ import annotations
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from call_operator.adapters.base import AudioChunk
+from call_operator.adapters.base import AudioChunk, MeetingAdapter
 from call_operator.config import Settings
 from call_operator.stt.base import Transcript
 
@@ -55,3 +55,14 @@ def mock_settings() -> Settings:
         },
     ):
         yield Settings()
+
+
+@pytest.fixture
+def mock_adapter() -> AsyncMock:
+    """A mocked MeetingAdapter for testing pipeline stages."""
+    adapter = AsyncMock(spec=MeetingAdapter)
+    adapter.is_connected = lambda: True
+    adapter.sample_rate = 16000
+    adapter.channels = 1
+    adapter.read_audio = AsyncMock(return_value=None)
+    return adapter

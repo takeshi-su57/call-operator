@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import asyncio
+import struct
+from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
@@ -162,3 +164,108 @@ class TestTTSStage:
         assert results[1] == _FAKE_AUDIO
         assert results[2] is None
         assert provider.calls == ["good", "bad", "also good"]
+
+
+# ------------------------------------------------------------------
+# Mocked synthesize tests
+# ------------------------------------------------------------------
+
+
+class TestOpenAITTSSynthesize:
+    async def test_returns_audio_chunk(self) -> None:
+        tts = OpenAITTS(api_key="test-key", voice="alloy")
+
+        # Mock the OpenAI client
+        mock_response = MagicMock()
+        # 24kHz PCM: 2400 samples = 100ms
+        pcm_24k = struct.pack("<2400h", *([1000] * 2400))
+        mock_response.read.return_value = pcm_24k
+
+        mock_client = AsyncMock()
+        mock_client.audio.speech.create = AsyncMock(return_value=mock_response)
+        tts._client = mock_client
+
+        chunk = await tts.synthesize("Hello")
+
+        assert isinstance(chunk, AudioChunk)
+        assert len(chunk.data) > 0
+        assert chunk.sample_rate == 16000
+        mock_client.audio.speech.create.assert_called_once()
+
+    async def test_retry_on_failure(self) -> None:
+        tts = OpenAITTS(api_key="test-key")
+
+        mock_response = MagicMock()
+        mock_response.read.return_value = struct.pack("<2400h", *([0] * 2400))
+
+        mock_client = AsyncMock()
+        mock_client.audio.speech.create = AsyncMock(
+            side_effect=[RuntimeError("transient"), mock_response]
+        )
+        tts._client = mock_client
+
+        with patch("call_operator.tts.openai_tts.asyncio.sleep", new_callable=AsyncMock):
+            chunk = await tts.synthesize("Hello")
+
+        assert isinstance(chunk, AudioChunk)
+        assert mock_client.audio.speech.create.call_count == 2
+
+
+class TestElevenLabsTTSSynthesize:
+    async def test_returns_audio_chunk(self) -> None:
+        tts = ElevenLabsTTS(api_key="test-key", voice="test-voice-id")
+
+        # Mock the client — convert() is sync and returns an async iterator
+        pcm_data = b"\x00\x01" * 1600  # 1600 samples
+
+        async def _async_iter() -> AsyncMock:
+            yield pcm_data  # type: ignore[misc]
+
+        mock_client = MagicMock()
+        mock_client.text_to_speech.convert.return_value = _async_iter()
+        tts._client = mock_client
+
+        chunk = await tts.synthesize("Hello")
+
+        assert isinstance(chunk, AudioChunk)
+        assert len(chunk.data) > 0
+        assert chunk.sample_rate == 16000
+
+
+class TestGoogleTTSSynthesize:
+    async def test_returns_audio_chunk(self) -> None:
+        tts = GoogleTTS(voice="en-US-Neural2-C")
+
+        # Mock the Google client
+        # Google returns WAV (44-byte header + PCM)
+        pcm_data = b"\x00\x01" * 800
+        wav_data = b"\x00" * 44 + pcm_data
+
+        mock_response = MagicMock()
+        mock_response.audio_content = wav_data
+
+        mock_client = AsyncMock()
+        mock_client.synthesize_speech = AsyncMock(return_value=mock_response)
+        tts._client = mock_client
+
+        chunk = await tts.synthesize("Hello")
+
+        assert isinstance(chunk, AudioChunk)
+        assert chunk.data == pcm_data
+        assert chunk.sample_rate == 16000
+
+    async def test_detects_ssml_input(self) -> None:
+        tts = GoogleTTS(voice="en-US-Neural2-C")
+
+        mock_response = MagicMock()
+        mock_response.audio_content = b"\x00" * 44 + b"\x01" * 100
+
+        mock_client = AsyncMock()
+        mock_client.synthesize_speech = AsyncMock(return_value=mock_response)
+        tts._client = mock_client
+
+        await tts.synthesize('<speak>Hello <break time="200ms"/> world</speak>')
+
+        call_args = mock_client.synthesize_speech.call_args
+        synthesis_input = call_args.kwargs.get("input") or call_args[1].get("input")
+        assert synthesis_input.ssml is not None
