@@ -24,3 +24,11 @@ The latest message from a participant:
 
 Generate a natural spoken response. Keep it brief (1-3 sentences).\
 """
+
+SUMMARIZE_PROMPT = """\
+The following is a transcript of earlier conversation in a meeting. \
+Summarize it in 2-4 sentences, preserving key decisions, action items, \
+and participant names. Be factual and concise.
+
+{conversation_history}\
+"""

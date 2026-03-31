@@ -48,6 +48,8 @@ def mock_settings() -> Settings:
             "STT_MODEL": "tiny",
             "TTS_PROVIDER": "openai",
             "TTS_VOICE": "alloy",
+            "LLM_MAX_CONTEXT_TOKENS": "8000",
+            "CONVERSATION_DEBOUNCE_MS": "0",
             "BROWSER_HEADLESS": "true",
             "LOG_LEVEL": "DEBUG",
         },
