@@ -92,6 +92,7 @@ module = [
     "torch.*",
     "deepgram.*",
     "elevenlabs.*",
+    "google.cloud.*",
 ]
 ignore_missing_imports = true
 

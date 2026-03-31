@@ -10,7 +10,20 @@ if TYPE_CHECKING:
 
 
 class TTSProvider(ABC):
-    """Interface for Text-to-Speech providers."""
+    """Interface for Text-to-Speech providers.
+
+    Lifecycle: ``start()`` → ``synthesize()`` (repeated) → ``stop()``.
+    """
+
+    @abstractmethod
+    async def start(self) -> None:
+        """Initialize resources (e.g. open HTTP client, validate credentials)."""
+        ...
+
+    @abstractmethod
+    async def stop(self) -> None:
+        """Release resources."""
+        ...
 
     @abstractmethod
     async def synthesize(self, text: str) -> AudioChunk:
